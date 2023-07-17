@@ -1,0 +1,18 @@
+const express = require('express');
+const cors = require('cors');
+
+require('dotenv').config();
+const PORT = process.env.PORT || 3000;
+const app = express();
+
+app.use(express.static('public'));
+app.use(cors());
+
+app.get('/', (req, res) => {
+    // serve index.html
+    res.sendFile(__dirname + '/index.html');
+});
+
+app.listen(PORT, () => console.log(`listening on port ${PORT}`));
+
+// Path: index.html
