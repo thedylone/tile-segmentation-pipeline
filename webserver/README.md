@@ -12,4 +12,10 @@ to run the server, run
 node app.js
 ```
 
+or
+
+```bash
+npm start
+```
+
 or just execute ```run.bat```
