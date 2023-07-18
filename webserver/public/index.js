@@ -6,8 +6,14 @@
 Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiI0YTZhOTAwYy0wMmE2LTQwYWQtOGViZS0xMDM3MDE1ZWQzODkiLCJpZCI6MTU0MzcwLCJpYXQiOjE2ODk1NjQxMTd9.AJHX5iqrqsxONF7D70YuQc5CNYPkG5m4ltTZ4cH8QTg';
 
 // Initialize the Cesium Viewer in the HTML element with the `cesiumContainer` ID.
-const viewer = new Cesium.Viewer('cesiumContainer', {
-    // terrain: Cesium.Terrain.fromWorldTerrain(),
+const viewer = new Cesium.Viewer("cesiumContainer", {
+    baseLayer: Cesium.ImageryLayer.fromProviderAsync(
+        Cesium.TileMapServiceImageryProvider.fromUrl(
+            Cesium.buildModuleUrl("Assets/Textures/NaturalEarthII")
+        )
+    ),
+    baseLayerPicker: false,
+    geocoder: false,
 });
 
 // Add Cesium OSM Buildings, a global 3D buildings layer.

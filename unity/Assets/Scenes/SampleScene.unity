@@ -172,7 +172,7 @@ MonoBehaviour:
   _url: http://localhost:3000/root.json
   _ionAssetID: 0
   _ionAccessToken: 
-  _maximumScreenSpaceError: 1024
+  _maximumScreenSpaceError: 16
   _preloadAncestors: 1
   _preloadSiblings: 1
   _forbidHoles: 0
