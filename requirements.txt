@@ -1,0 +1,7 @@
+gltflib
+matplotlib
+numpy
+Pillow
+scipy
+transformers
+trimesh
