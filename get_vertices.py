@@ -1,7 +1,7 @@
-"""get vertices from a glb file - save to a file"""
+"""sort vertices by class and export submeshes"""
 from collections import defaultdict
 import numpy as np
-from trimesh import Trimesh, load
+from trimesh import Trimesh, load, Scene
 import torch
 
 
@@ -12,13 +12,15 @@ def sort_uv_by_seg_class(mesh, seg) -> defaultdict:
     if not visual:
         raise ValueError("Mesh has no visual")
     uv_map = visual.uv
+    width: int
+    height: int
     width, height = seg.shape[1], seg.shape[0]
     for i, coords in enumerate(uv_map):
         # origin is bottom left
-        col = int(coords[0] * width - 1)
-        row = int((1 - coords[1]) * height - 1)
-        class_id = seg[row][col].item()
-        objects[class_id].append(i)
+        col: int = int(coords[0] * width) % width
+        row: int = int((1 - coords[1]) * height) % height
+        class_id: int = seg[row][col].item()
+        objects[class_id].append(i)  # add vertex index to class
     return objects
 
 
@@ -35,12 +37,20 @@ def get_submesh_from_class(mesh: Trimesh, objects: defaultdict, class_id):
 def main() -> None:
     """main"""
     seg = torch.load("map.pt")
-    mesh: Trimesh = load("model.glb", force="mesh")
-    objects: defaultdict = sort_uv_by_seg_class(mesh, seg)
-    for class_id in objects:
-        submeshes = get_submesh_from_class(mesh, objects, class_id)
-        for i, submesh in enumerate(submeshes):
-            submesh.export(f"sub_{class_id}_{i}.glb")
+    glb = load("model.glb")
+    meshes: list[Trimesh] = []
+    if isinstance(glb, Scene):
+        meshes = list(glb.geometry.values())
+    elif isinstance(glb, Trimesh):
+        meshes = [glb]
+    else:
+        raise ValueError("Unsupported GLB type")
+    for i, mesh in enumerate(meshes):
+        objects: defaultdict = sort_uv_by_seg_class(mesh, seg)
+        for class_id in objects:
+            submeshes = get_submesh_from_class(mesh, objects, class_id)
+            for j, submesh in enumerate(submeshes):
+                submesh.export(f"sub_{class_id}_{i}_{j}.glb")
 
 
 if __name__ == "__main__":

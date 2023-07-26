@@ -77,9 +77,10 @@ def main(path: str, save: bool = False):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "-f", "--file", required=True, type=str, help="path to gltf file"
-    )
+    # parser.add_argument(
+    #     "-f", "--file", required=True, type=str, help="path to gltf file"
+    # )
     parser.add_argument("-s", "--save", action="store_true")
     args: argparse.Namespace = parser.parse_args()
-    main(args.file, args.save)
+    # main(args.file, args.save)
+    main("model.glb", args.save)

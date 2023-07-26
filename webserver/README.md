@@ -4,6 +4,8 @@ to install, run
 npm install
 ```
 
+put the 3d tiles data into the ```public/``` folder (replace ```root.json```)
+
 ---
 
 to run the server, run
