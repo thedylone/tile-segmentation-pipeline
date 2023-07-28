@@ -31,13 +31,18 @@ def get_submesh_from_class(mesh: Trimesh, objects: defaultdict, class_id):
         for i, face in enumerate(mesh.faces)
         if np.any(np.isin(face, objects[class_id]))
     ]
-    return mesh.submesh([selected_faces], append=False)
+    submeshes = mesh.submesh([selected_faces], append=False)
+    # TODO: fix uv
+    # for submesh in submeshes:
+    #     submesh.visual.uv = mesh.visual.[submesh.faces.reshape(-1)].reshape(-1, 2)
+    return submeshes
 
 
 def main() -> None:
     """main"""
     seg = torch.load("map.pt")
-    glb = load("model.glb")
+    # seg = np.load("map.npy")
+    glb = load("model.gltf")
     meshes: list[Trimesh] = []
     if isinstance(glb, Scene):
         meshes = list(glb.geometry.values())

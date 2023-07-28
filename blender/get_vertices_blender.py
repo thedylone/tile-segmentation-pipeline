@@ -37,6 +37,8 @@ def main() -> None:
     bpy.ops.object.mode_set(mode="OBJECT")
     select_vertices_by_uv(obj, seg, 2)  # 2 for buildings, 8 for vegetation
     bpy.ops.object.mode_set(mode="EDIT")
+    # separate selected vertices into new object
+    bpy.ops.mesh.separate(type="SELECTED")
     # bmesh.update_edit_mesh(obj.data)
 
 

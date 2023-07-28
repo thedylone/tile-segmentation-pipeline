@@ -4,7 +4,7 @@ import bmesh
 import mathutils
 
 
-THRESHOLD = 2
+THRESHOLD = 1.3
 UP_VECTOR = mathutils.Vector((0.0, 0.0, 1.0))
 neighbours: dict = {}
 
