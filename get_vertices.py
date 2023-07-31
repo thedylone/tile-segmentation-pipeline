@@ -5,7 +5,7 @@ from trimesh import Trimesh, load, Scene
 import torch
 
 
-def sort_uv_by_seg_class(mesh, seg) -> defaultdict:
+def sort_uv_by_seg_class(mesh: Trimesh, seg: np.ndarray) -> defaultdict:
     """returns a dictionary of vertices sorted by class"""
     objects = defaultdict(list)
     visual = mesh.visual
@@ -24,25 +24,31 @@ def sort_uv_by_seg_class(mesh, seg) -> defaultdict:
     return objects
 
 
-def get_submesh_from_class(mesh: Trimesh, objects: defaultdict, class_id):
-    """returns a submesh from a class"""
-    selected_faces = [
-        i
-        for i, face in enumerate(mesh.faces)
-        if np.any(np.isin(face, objects[class_id]))
-    ]
-    submeshes = mesh.submesh([selected_faces], append=False)
+def get_submeshes_by_class(mesh: Trimesh, objects: defaultdict) -> dict:
+    """returns a dictionary of submeshes by class"""
+    submeshes = defaultdict(list)
+    for i, face in enumerate(mesh.faces):
+        for class_id in objects:
+            if np.any(np.isin(face, objects[class_id])):
+                submeshes[class_id].append(i)
+    return {
+        class_id: mesh.submesh([submeshes[class_id]], append=False)
+        for class_id in submeshes
+    }
+    # selected_faces = [
+    #     i
+    #     for i, face in enumerate(mesh.faces)
+    #     if np.any(np.isin(face, objects[class_id]))
+    # ]
+    # return mesh.submesh([selected_faces], append=False)
     # TODO: fix uv
     # for submesh in submeshes:
     #     submesh.visual.uv = mesh.visual.[submesh.faces.reshape(-1)].reshape(-1, 2)
-    return submeshes
 
 
-def main() -> None:
-    """main"""
-    seg = torch.load("map.pt")
-    # seg = np.load("map.npy")
-    glb = load("model.gltf")
+def load_glb(path: str) -> list[Trimesh]:
+    """load glb into list of meshes"""
+    glb = load(path)
     meshes: list[Trimesh] = []
     if isinstance(glb, Scene):
         meshes = list(glb.geometry.values())
@@ -50,13 +56,17 @@ def main() -> None:
         meshes = [glb]
     else:
         raise ValueError("Unsupported GLB type")
-    for i, mesh in enumerate(meshes):
-        objects: defaultdict = sort_uv_by_seg_class(mesh, seg)
-        for class_id in objects:
-            submeshes = get_submesh_from_class(mesh, objects, class_id)
-            for j, submesh in enumerate(submeshes):
-                submesh.export(f"sub_{class_id}_{i}_{j}.glb")
+    return meshes
 
 
 if __name__ == "__main__":
-    main()
+    seg = torch.load("map.pt")
+    # seg = np.load("map.npy")
+    # split_mesh("model.gltf", seg)
+    meshes: list[Trimesh] = load_glb("model.glb")
+    for i, mesh in enumerate(meshes):
+        objects: defaultdict = sort_uv_by_seg_class(mesh, seg)
+        submeshes: dict = get_submeshes_by_class(mesh, objects)
+        for class_id in submeshes:
+            for submesh in submeshes[class_id]:
+                submesh.export(f"output/submesh_mesh{i}_{class_id}.glb")

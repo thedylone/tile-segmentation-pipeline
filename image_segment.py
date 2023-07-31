@@ -15,6 +15,15 @@ MODEL = Mask2FormerForUniversalSegmentation.from_pretrained(URL)
 PROCESSOR = AutoImageProcessor.from_pretrained(URL)
 
 
+def get_labels() -> dict:
+    """returns list of labels"""
+    if MODEL is None:
+        raise RuntimeError("Model not initialised")
+    if MODEL.config is None:
+        raise RuntimeError("Model config not initialised")
+    return MODEL.config.id2label or {}
+
+
 def predict_semantic(image: Image.Image) -> np.ndarray:
     """predict semantic segmentation on a single image"""
     inputs = PROCESSOR(image, return_tensors="pt")
@@ -32,7 +41,7 @@ def visualise(image: Image.Image, seg: np.ndarray) -> None:
     )  # height, width, 3
     color_palette = [
         list(np.random.choice(range(256), size=3))
-        for _ in range(len(MODEL.config.id2label))
+        for _ in range(len(get_labels()))
     ]
     palette = np.array(color_palette)
     for label, color in enumerate(palette):
@@ -71,4 +80,4 @@ if __name__ == "__main__":
     )
     parser.add_argument("-s", "--save", action="store_true")
     args: argparse.Namespace = parser.parse_args()
-    main(args.image, args.save)
+    main(args.file, args.save)

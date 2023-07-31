@@ -15,7 +15,7 @@ def gltf_image_to_pillow(
     data: bytes = get_gltf_image_data(gltf, image)
     img: Image.Image = Image.open(io.BytesIO(data))
     if save:
-        img.save(f"image{index}.{get_image_format(image)}")
+        img.save(f"output/image{index}.{get_image_format(image)}")
     return img
 
 
