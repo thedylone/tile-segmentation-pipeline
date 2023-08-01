@@ -5,45 +5,62 @@ from trimesh import Trimesh, load, Scene
 import torch
 
 
-def sort_uv_by_seg_class(mesh: Trimesh, seg: np.ndarray) -> defaultdict:
-    """returns a dictionary of vertices sorted by class"""
-    objects = defaultdict(list)
-    visual = mesh.visual
-    if not visual:
-        raise ValueError("Mesh has no visual")
-    uv_map = visual.uv
-    width: int
-    height: int
-    width, height = seg.shape[1], seg.shape[0]
-    for i, coords in enumerate(uv_map):
-        # origin is bottom left
-        col: int = int(coords[0] * width) % width
-        row: int = int((1 - coords[1]) * height) % height
-        class_id: int = seg[row][col].item()
-        objects[class_id].append(i)  # add vertex index to class
-    return objects
+class MeshSegment:
+    """MeshSegment"""
 
+    def __init__(self, mesh: Trimesh) -> None:
+        self.mesh: Trimesh = mesh
+        self.visual = mesh.visual
+        self.vertices_to_class: list[int] = [-1] * len(mesh.vertices)
 
-def get_submeshes_by_class(mesh: Trimesh, objects: defaultdict) -> dict:
-    """returns a dictionary of submeshes by class"""
-    submeshes = defaultdict(list)
-    for i, face in enumerate(mesh.faces):
-        for class_id in objects:
-            if np.any(np.isin(face, objects[class_id])):
+    @property
+    def seg(self) -> np.ndarray:
+        """returns segmentation map"""
+        return self._seg
+
+    @seg.setter
+    def seg(self, seg: np.ndarray) -> None:
+        """sets segmentation map"""
+        self._seg: np.ndarray = seg
+        self._height: int = seg.shape[0]
+        self._width: int = seg.shape[1]
+
+    @property
+    def visual(self):
+        """returns visual"""
+        return self._visual
+
+    @visual.setter
+    def visual(self, visual) -> None:
+        """sets visual"""
+        if visual is None:
+            raise ValueError("Mesh has no visual")
+        self._visual = visual
+
+    def get_vertex_class(self, vertex: int) -> int:
+        """returns class of vertex"""
+        if self.vertices_to_class[vertex] != -1:
+            return self.vertices_to_class[vertex]
+        coords = self.visual.uv[vertex]
+        col: int = int(coords[0] * self._width) % self._width
+        row: int = int((1 - coords[1]) * self._height) % self._height
+        class_id = self.seg[row][col].item()
+        self.vertices_to_class[vertex] = class_id
+        return class_id
+
+    def get_submeshes(self) -> dict:
+        """returns a dictionary of submeshes by class"""
+        if self._height == 0 or self._width == 0:
+            raise ValueError("Segmentation map is empty")
+        submeshes = defaultdict(list)
+        for i, face in enumerate(self.mesh.faces):
+            for vertex in face:
+                class_id: int = self.get_vertex_class(vertex)
                 submeshes[class_id].append(i)
-    return {
-        class_id: mesh.submesh([submeshes[class_id]], append=False)
-        for class_id in submeshes
-    }
-    # selected_faces = [
-    #     i
-    #     for i, face in enumerate(mesh.faces)
-    #     if np.any(np.isin(face, objects[class_id]))
-    # ]
-    # return mesh.submesh([selected_faces], append=False)
-    # TODO: fix uv
-    # for submesh in submeshes:
-    #     submesh.visual.uv = mesh.visual.[submesh.faces.reshape(-1)].reshape(-1, 2)
+        return {
+            class_id: self.mesh.submesh([submeshes[class_id]], append=False)
+            for class_id in submeshes
+        }
 
 
 def load_glb(path: str) -> list[Trimesh]:
@@ -62,11 +79,11 @@ def load_glb(path: str) -> list[Trimesh]:
 if __name__ == "__main__":
     seg = torch.load("map.pt")
     # seg = np.load("map.npy")
-    # split_mesh("model.gltf", seg)
     meshes: list[Trimesh] = load_glb("model.glb")
     for i, mesh in enumerate(meshes):
-        objects: defaultdict = sort_uv_by_seg_class(mesh, seg)
-        submeshes: dict = get_submeshes_by_class(mesh, objects)
+        mesh = MeshSegment(mesh)
+        mesh.seg = seg
+        submeshes: dict = mesh.get_submeshes()
         for class_id in submeshes:
             for submesh in submeshes[class_id]:
                 submesh.export(f"output/submesh_mesh{i}_{class_id}.glb")

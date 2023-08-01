@@ -1,32 +1,47 @@
-from collections import defaultdict
-from get_vertices import load_glb, sort_uv_by_seg_class, get_submeshes_by_class
+"""pipeline for segmenting glb files"""
+from get_vertices import load_glb, MeshSegment
 from image_segment import predict_semantic, get_labels
 from PIL.Image import Image
 from trimesh import Trimesh
-import numpy as np
+from tqdm import tqdm
+from tqdm.contrib.logging import logging_redirect_tqdm
 import logging
+
+
+LOG: logging.Logger = logging.getLogger(__name__)
 
 
 def segment_glb(path: str) -> None:
     """segment glb"""
     meshes: list[Trimesh] = load_glb(path)
-    for i, mesh in enumerate(meshes):
+    for i, _mesh in tqdm(
+        enumerate(meshes),
+        desc="segmenting meshes",
+        unit="mesh",
+        total=len(meshes),
+    ):
+        mesh = MeshSegment(_mesh)
         if mesh.visual is None:
-            logging.warning(f"Mesh {i} has no visual")
+            LOG.warning(f"Mesh {i} has no visual")
             continue
         texture: Image = mesh.visual.material.baseColorTexture
         if texture is None:
-            logging.warning(f"Mesh {i} has no texture")
+            LOG.warning(f"Mesh {i} has no texture")
             continue
-        seg: np.ndarray = predict_semantic(texture)
-        objects: defaultdict = sort_uv_by_seg_class(mesh, seg)
-        submeshes_dict: dict = get_submeshes_by_class(mesh, objects)
-        for class_id in submeshes_dict:
-            for submesh in submeshes_dict[class_id]:
+        LOG.info("Predicting semantic segmentation")
+        mesh.seg = predict_semantic(texture)
+        # logging.info("Exporting submeshes")
+        submeshes: dict = mesh.get_submeshes()
+        for class_id in tqdm(submeshes, desc="exporting", unit="submesh"):
+            for submesh in submeshes[class_id]:
                 labels: dict = get_labels()
-                label = labels.get(class_id, class_id)
+                label: str | int = labels.get(class_id, class_id)
                 submesh.export(f"output/submesh_mesh{i}_{label}.glb")
 
 
 if __name__ == "__main__":
-    segment_glb("model.gltf")
+    logging.basicConfig(level=logging.INFO)
+    with logging_redirect_tqdm():
+        LOG.info("Starting segmentation")
+        segment_glb("model.gltf")
+        LOG.info("Segmentation complete")
