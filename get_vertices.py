@@ -1,15 +1,17 @@
 """sort vertices by class and export submeshes"""
 from collections import defaultdict
+from pathlib import Path
 import numpy as np
 from trimesh import Trimesh, load, Scene
-import torch
+from tqdm import tqdm
 
 
 class MeshSegment:
     """MeshSegment"""
 
-    def __init__(self, mesh: Trimesh) -> None:
+    def __init__(self, mesh: Trimesh, index: int = 0) -> None:
         self.mesh: Trimesh = mesh
+        self.index: int = index
         self.visual = mesh.visual
         self.vertices_to_class: list[int] = [-1] * len(mesh.vertices)
 
@@ -37,7 +39,19 @@ class MeshSegment:
             raise ValueError("Mesh has no visual")
         self._visual = visual
 
-    def get_vertex_class(self, vertex: int) -> int:
+    @property
+    def submeshes(self) -> dict[int, Trimesh]:
+        """returns submeshes"""
+        if not hasattr(self, "_submeshes") or self._submeshes is None:
+            self._submeshes: dict[int, Trimesh] = self._get_submeshes()
+        return self._submeshes
+
+    @submeshes.setter
+    def submeshes(self, submeshes: dict[int, Trimesh]) -> None:
+        """sets submeshes"""
+        self._submeshes = submeshes
+
+    def _get_vertex_class(self, vertex: int) -> int:
         """returns class of vertex"""
         if self.vertices_to_class[vertex] != -1:
             return self.vertices_to_class[vertex]
@@ -48,42 +62,50 @@ class MeshSegment:
         self.vertices_to_class[vertex] = class_id
         return class_id
 
-    def get_submeshes(self) -> dict:
+    def _get_submeshes(self) -> dict[int, Trimesh]:
         """returns a dictionary of submeshes by class"""
         if self._height == 0 or self._width == 0:
             raise ValueError("Segmentation map is empty")
-        submeshes = defaultdict(list)
+        sub_faces = defaultdict(list)
         for i, face in enumerate(self.mesh.faces):
             for vertex in face:
-                class_id: int = self.get_vertex_class(vertex)
-                submeshes[class_id].append(i)
-        return {
-            class_id: self.mesh.submesh([submeshes[class_id]], append=False)
-            for class_id in submeshes
-        }
+                class_id: int = self._get_vertex_class(vertex)
+                sub_faces[class_id].append(i)
+        submeshes: dict[int, Trimesh] = {}
+        for class_id, faces in sub_faces.items():
+            submesh = self.mesh.submesh([faces], append=True)
+            if not isinstance(submesh, Trimesh):
+                raise ValueError("Submesh is not a Trimesh")
+            submeshes[class_id] = submesh
+        return submeshes
+
+    def export_submeshes(self, path: Path) -> None:
+        """exports submeshes by class"""
+        submeshes: dict[int, Trimesh] = self.submeshes
+        for class_id in tqdm(submeshes, desc="Exporting", unit="submesh"):
+            submeshes[class_id].export(
+                path / f"submesh{self.index}_{class_id}.glb"
+            )
 
 
-def load_glb(path: str) -> list[Trimesh]:
-    """load glb into list of meshes"""
+def load_glb(path: Path) -> list[MeshSegment]:
+    """load glb into list of MeshSegments"""
     glb = load(path)
-    meshes: list[Trimesh] = []
     if isinstance(glb, Scene):
-        meshes = list(glb.geometry.values())
-    elif isinstance(glb, Trimesh):
-        meshes = [glb]
-    else:
-        raise ValueError("Unsupported GLB type")
-    return meshes
+        return [
+            MeshSegment(mesh, i)
+            for i, mesh in enumerate(glb.geometry.values())
+        ]
+    if isinstance(glb, Trimesh):
+        return [MeshSegment(glb)]
+
+    raise ValueError("Unsupported GLB type")
 
 
 if __name__ == "__main__":
-    seg = torch.load("map.pt")
-    # seg = np.load("map.npy")
-    meshes: list[Trimesh] = load_glb("model.glb")
+    # seg = torch.load("map.pt")
+    seg = np.load("map.npy")
+    meshes: list[MeshSegment] = load_glb(Path("model.gltf"))
     for i, mesh in enumerate(meshes):
-        mesh = MeshSegment(mesh)
         mesh.seg = seg
-        submeshes: dict = mesh.get_submeshes()
-        for class_id in submeshes:
-            for submesh in submeshes[class_id]:
-                submesh.export(f"output/submesh_mesh{i}_{class_id}.glb")
+        mesh.export_submeshes(Path("output"))

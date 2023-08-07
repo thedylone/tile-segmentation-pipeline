@@ -1,8 +1,10 @@
+DracoPy
 gltflib
 matplotlib
 numpy
 Pillow
 scipy
+torch
 tqdm
 transformers
 trimesh
