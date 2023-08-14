@@ -1,13 +1,13 @@
 """pipeline for segmenting glb files"""
 from pathlib import Path
+import logging
+from PIL.Image import Image
+from tqdm import tqdm
+from tqdm.contrib.logging import logging_redirect_tqdm
 from py3dtiles.tileset.tileset import TileSet, Tile
 from tileset_converter import convert_tileset
 from get_vertices import load_glb, MeshSegment
 from image_segment import predict_semantic, get_labels
-from PIL.Image import Image
-from tqdm import tqdm
-from tqdm.contrib.logging import logging_redirect_tqdm
-import logging
 
 
 LOG: logging.Logger = logging.getLogger(__name__)

@@ -13,19 +13,8 @@ class MeshSegment:
         self.mesh: Trimesh = mesh
         self.index: int = index
         self.visual = mesh.visual
+        self.seg: np.ndarray = np.array([])
         self.vertices_to_class: list[int] = [-1] * len(mesh.vertices)
-
-    @property
-    def seg(self) -> np.ndarray:
-        """returns segmentation map"""
-        return self._seg
-
-    @seg.setter
-    def seg(self, seg: np.ndarray) -> None:
-        """sets segmentation map"""
-        self._seg: np.ndarray = seg
-        self._height: int = seg.shape[0]
-        self._width: int = seg.shape[1]
 
     @property
     def visual(self):
@@ -56,15 +45,16 @@ class MeshSegment:
         if self.vertices_to_class[vertex] != -1:
             return self.vertices_to_class[vertex]
         coords = self.visual.uv[vertex]
-        col: int = int(coords[0] * self._width) % self._width
-        row: int = int((1 - coords[1]) * self._height) % self._height
-        class_id = self.seg[row][col].item()
+        height, width = self.seg.shape
+        col: int = int(coords[0] * width) % width
+        row: int = int((1 - coords[1]) * height) % height
+        class_id: int = self.seg[row][col].item()
         self.vertices_to_class[vertex] = class_id
         return class_id
 
     def _get_submeshes(self) -> dict[int, Trimesh]:
         """returns a dictionary of submeshes by class"""
-        if self._height == 0 or self._width == 0:
+        if self.seg.size == 0:
             raise ValueError("Segmentation map is empty")
         sub_faces = defaultdict(list)
         for i, face in enumerate(self.mesh.faces):
@@ -102,10 +92,15 @@ def load_glb(path: Path) -> list[MeshSegment]:
     raise ValueError("Unsupported GLB type")
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """main"""
     # seg = torch.load("map.pt")
     seg = np.load("map.npy")
     meshes: list[MeshSegment] = load_glb(Path("model.gltf"))
-    for i, mesh in enumerate(meshes):
+    for mesh in meshes:
         mesh.seg = seg
         mesh.export_submeshes(Path("output"))
+
+
+if __name__ == "__main__":
+    main()

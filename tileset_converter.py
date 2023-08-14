@@ -1,5 +1,6 @@
-from py3dtiles.tileset.tileset import TileSet, MetadataEntity, Schema
+"""converts tileset to 1.1 with groups and schema"""
 import re
+from py3dtiles.tileset.tileset import TileSet, MetadataEntity, Schema
 
 
 def convert_tileset(tileset: TileSet, labels: dict) -> None:
