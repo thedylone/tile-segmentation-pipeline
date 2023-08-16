@@ -85,7 +85,7 @@ class MeshSegment:
     @property
     def submeshes(self) -> dict[int, SubmeshSegment]:
         """returns submeshes"""
-        if not hasattr(self, "_subvertices") or self._submeshes is None:
+        if not hasattr(self, "_submeshes") or self._submeshes is None:
             self._submeshes: dict[int, SubmeshSegment] = self._get_submeshes()
         return self._submeshes
 
