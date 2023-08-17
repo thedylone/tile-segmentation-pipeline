@@ -344,7 +344,12 @@ class MeshSegment(BufferAccessor):
         SubmeshSegment.points = self.data.points
         SubmeshSegment.tex_coord = self.data.tex_coord
         submeshes = defaultdict(SubmeshSegment)
-        for face in tqdm(self.data.faces, desc="Loading faces", unit="face"):
+        for face in tqdm(
+            self.data.faces,
+            desc="Loading faces",
+            unit="face",
+            leave=False,
+        ):
             for vertex in face:
                 class_id: int = self._get_vertex_class(vertex)
                 submeshes[class_id].add_face(face)
@@ -352,12 +357,10 @@ class MeshSegment(BufferAccessor):
 
     def export_submeshes(self, path: Path) -> None:
         """exports submeshes"""
-        for class_id in tqdm(
-            self.submeshes, desc="Exporting submeshes", unit="submesh"
+        for class_id, submesh in tqdm(
+            self.submeshes.items(), desc="Exporting submeshes", unit="submesh"
         ):
-            self.export_submesh(
-                self.submeshes[class_id], path / f"submesh_{class_id}.glb"
-            )
+            self.export_submesh(submesh, path / f"submesh_{class_id}.glb")
 
     def export_submesh(self, submesh: SubmeshSegment, path: Path) -> None:
         """exports submesh to path"""
@@ -461,7 +464,6 @@ class MeshSegment(BufferAccessor):
                     + face_bytelen
                     + tex_coord_bytelen,
                     byteLength=image_bytelen,
-                    target=BufferTarget.ARRAY_BUFFER.value,
                 ),
             ],
             # images=self.glb.model.images,
@@ -500,10 +502,16 @@ class GLBSegment(BufferAccessor):
         if self.glb.model.meshes is None:
             return
         for mesh in tqdm(
-            self.glb.model.meshes, desc="Loading meshes", unit="mesh"
+            self.glb.model.meshes,
+            desc="Loading meshes",
+            unit="mesh",
+            leave=False,
         ):
             for primitive in tqdm(
-                mesh.primitives, desc="Loading primitives", unit="primitive"
+                mesh.primitives,
+                desc="Loading primitives",
+                unit="primitive",
+                leave=False,
             ):
                 self.meshes.append(MeshSegment(primitive))
 

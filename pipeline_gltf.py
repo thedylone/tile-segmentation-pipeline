@@ -38,9 +38,9 @@ def rewrite_tile(tile: Tile, meshes: list[MeshSegment]) -> None:
     if tile.contents is None:
         tile.contents = []
     for mesh in meshes:
-        for class_id in tqdm(mesh.submeshes, desc="exporting", unit="submesh"):
+        for class_id, submesh in tqdm(mesh.submeshes.items(), desc="exporting", unit="submesh"):
             SUBMESH_DIR: str = f"output/submesh{mesh.index}_{class_id}.glb"
-            mesh.submeshes[class_id].export(OUTPUT_DIR / SUBMESH_DIR)
+            submesh.export(OUTPUT_DIR / SUBMESH_DIR)
             tile.contents.append({"uri": SUBMESH_DIR, "group": class_id})
 
 

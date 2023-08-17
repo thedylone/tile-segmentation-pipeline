@@ -72,10 +72,10 @@ class MeshSegment:
     def export_submeshes(self, path: Path) -> None:
         """exports submeshes by class"""
         submeshes: dict[int, Trimesh] = self.submeshes
-        for class_id in tqdm(submeshes, desc="Exporting", unit="submesh"):
-            submeshes[class_id].export(
-                path / f"submesh{self.index}_{class_id}.glb"
-            )
+        for class_id, submesh in tqdm(
+            submeshes.items(), desc="Exporting", unit="submesh"
+        ):
+            submesh.export(path / f"submesh{self.index}_{class_id}.glb")
 
 
 def load_glb(path: Path) -> list[MeshSegment]:
