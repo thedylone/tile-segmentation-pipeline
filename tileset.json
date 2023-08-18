@@ -17,7 +17,7 @@
         "children": [
             {
                 "content": {
-                    "uri": "model.glb"
+                    "uri": "tileset_child1.json"
                 },
                 "refine": "REPLACE",
                 "boundingVolume": {
@@ -26,68 +26,20 @@
                         0.1
                     ]
                 },
-                "geometricError": 1.0,
-                "children": [
-                    {
-                        "content": {
-                            "uri": "model.glb"
-                        },
-                        "refine": "REPLACE",
-                        "boundingVolume": {
-                            "box": [
-                                0.5, -0.5, 0.0, 0.5, 0.0, 0.0, 0.0, -0.5, 0.0,
-                                0.0, 0.0, 0.1
-                            ]
-                        },
-                        "geometricError": 1.0,
-                        "children": [
-                            {
-                                "content": {
-                                    "uri": "model.glb"
-                                },
-                                "refine": "REPLACE",
-                                "boundingVolume": {
-                                    "box": [
-                                        0.5, -0.5, 0.0, 0.5, 0.0, 0.0, 0.0,
-                                        -0.5, 0.0, 0.0, 0.0, 0.1
-                                    ]
-                                },
-                                "geometricError": 1.0,
-                                "children": [
-                                    {
-                                        "content": {
-                                            "uri": "model.glb"
-                                        },
-                                        "refine": "REPLACE",
-                                        "boundingVolume": {
-                                            "box": [
-                                                0.5, -0.5, 0.0, 0.5, 0.0, 0.0,
-                                                0.0, -0.5, 0.0, 0.0, 0.0, 0.1
-                                            ]
-                                        },
-                                        "geometricError": 1.0,
-                                        "children": [
-                                            {
-                                                "content": {
-                                                    "uri": "model.glb"
-                                                },
-                                                "refine": "REPLACE",
-                                                "boundingVolume": {
-                                                    "box": [
-                                                        0.5, -0.5, 0.0, 0.5,
-                                                        0.0, 0.0, 0.0, -0.5,
-                                                        0.0, 0.0, 0.0, 0.1
-                                                    ]
-                                                },
-                                                "geometricError": 1.0
-                                            }
-                                        ]
-                                    }
-                                ]
-                            }
-                        ]
-                    }
-                ]
+                "geometricError": 1.0
+            },
+            {
+                "content": {
+                    "uri": "tileset_child2.json"
+                },
+                "refine": "REPLACE",
+                "boundingVolume": {
+                    "box": [
+                        0.5, -0.5, 0.0, 0.5, 0.0, 0.0, 0.0, -0.5, 0.0, 0.0, 0.0,
+                        0.1
+                    ]
+                },
+                "geometricError": 1.0
             }
         ]
     }

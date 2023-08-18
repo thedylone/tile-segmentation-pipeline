@@ -70,8 +70,8 @@ class Pipeline:
                 leave=False,
             ):
                 count: str = hex(cls.glb_count)[2:]
-                uri: str = f"output/glb{count}_mesh{i}_{class_id}.glb"
-                mesh.export_submesh(submesh, cls.OUTPUT_DIR / uri)
+                uri: str = f"glb{count}_mesh{i}_{class_id}.glb"
+                mesh.export_submesh(submesh, cls.OUTPUT_DIR / "output" / uri)
                 tile.contents.append({"uri": uri, "group": class_id})
         cls.glb_count += 1
         cls.GLB_PBAR.update()
@@ -80,11 +80,11 @@ class Pipeline:
     def segment_tileset(cls, tileset: TileSet) -> None:
         """segment tileset"""
         LOG.info("Segmenting tileset")
+        count: str = hex(cls.tileset_count)[2:]
+        cls.tileset_count += 1
         convert_tileset(tileset, get_labels())
         cls.segment_tile(tileset.root_tile)
-        count: str = hex(cls.tileset_count)[2:]
         tileset.write_as_json(cls.OUTPUT_DIR / f"output/tileset_{count}.json")
-        cls.tileset_count += 1
         cls.TILESET_PBAR.update()
 
     @staticmethod
@@ -103,7 +103,7 @@ class Pipeline:
             uri_ = uri_[1:]
         uri: Path = cls.INPUT_DIR / uri_
         if not uri.exists():
-            LOG.warning("File %s does not exist", uri)
+            LOG.info("File %s does not exist", uri)
             return
         if uri.suffix == ".glb":
             LOG.info("Segmenting tile")
@@ -111,7 +111,7 @@ class Pipeline:
             cls.rewrite_tile(tile, meshes)
         if uri.suffix == ".json":
             count: str = hex(cls.tileset_count)[2:]
-            tile.content["uri"] = f"output/tileset_{count}.json"
+            tile.content["uri"] = f"tileset_{count}.json"
             cls.segment_tileset(TileSet.from_file(uri))
 
     @classmethod
