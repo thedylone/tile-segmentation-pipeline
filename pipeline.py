@@ -71,7 +71,7 @@ class Pipeline:
             ):
                 count: str = hex(cls.glb_count)[2:]
                 uri: str = f"glb{count}_mesh{i}_{class_id}.glb"
-                mesh.export_submesh(submesh, cls.OUTPUT_DIR / "output" / uri)
+                mesh.export_submesh(submesh, cls.OUTPUT_DIR / uri)
                 tile.contents.append({"uri": uri, "group": class_id})
         cls.glb_count += 1
         cls.GLB_PBAR.update()
@@ -84,7 +84,7 @@ class Pipeline:
         cls.tileset_count += 1
         convert_tileset(tileset, get_labels())
         cls.segment_tile(tileset.root_tile)
-        tileset.write_as_json(cls.OUTPUT_DIR / f"output/tileset_{count}.json")
+        tileset.write_as_json(cls.OUTPUT_DIR / f"tileset_{count}.json")
         cls.TILESET_PBAR.update()
 
     @staticmethod
@@ -135,17 +135,17 @@ class Pipeline:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Segment a 3D tileset")
     parser.add_argument(
-        "-i",
-        "--input-dir",
-        type=str,
-        help="input directory for tileset",
-    )
-    parser.add_argument(
         "-f",
         "--filename",
         type=str,
         help="filename of tileset",
         default="tileset.json",
+    )
+    parser.add_argument(
+        "-i",
+        "--input-dir",
+        type=str,
+        help="input directory for tileset",
     )
     parser.add_argument(
         "-o",

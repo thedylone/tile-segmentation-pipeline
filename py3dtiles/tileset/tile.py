@@ -76,7 +76,9 @@ class Tile(RootProperty[TileDictType]):
             tile.set_refine_mode(tile_dict["refine"])
 
         if "transform" in tile_dict:
-            tile.transform = np.array(tile_dict["transform"]).reshape((4, 4))
+            tile.transform = np.array(
+                tile_dict["transform"], dtype=np.float64
+            ).reshape((4, 4))
 
         if "children" in tile_dict:
             for child in tile_dict["children"]:

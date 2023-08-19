@@ -2,7 +2,7 @@
 import argparse
 import io
 import mimetypes
-from gltflib import Image as GLTF_Image, Buffer
+from gltflib import Image as GLTF_Image, Buffer, BufferView
 from gltflib.gltf import GLTF
 from gltflib.gltf_resource import GLBResource, GLTFResource, FileResource
 from PIL import Image
@@ -22,11 +22,17 @@ def gltf_image_to_pillow(
 def get_gltf_image_data(gltf: GLTF, image: GLTF_Image) -> bytes:
     """get the data from a gltf image"""
     if image.uri is None:
-        buffer_view = gltf.model.bufferViews[image.bufferView]
-        buffer = gltf.model.buffers[buffer_view.buffer]
+        if gltf.model.bufferViews is None:
+            raise ValueError("Model has no bufferViews")
+        if image.bufferView is None:
+            raise ValueError("Image has no bufferView")
+        if gltf.model.buffers is None:
+            raise ValueError("Model has no buffers")
+        buffer_view: BufferView = gltf.model.bufferViews[image.bufferView]
+        buffer: Buffer = gltf.model.buffers[buffer_view.buffer]
         data: bytes = get_buffer_data(gltf, buffer)
-        start = buffer_view.byteOffset or 0
-        end = start + buffer_view.byteLength
+        start: int = buffer_view.byteOffset or 0
+        end: int = start + buffer_view.byteLength
         return data[start:end]
     resource: GLTFResource = gltf.get_resource(image.uri)
     if isinstance(resource, FileResource):
@@ -77,10 +83,13 @@ def main(path: str, save: bool = False):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    # parser.add_argument(
-    #     "-f", "--file", required=True, type=str, help="path to gltf file"
-    # )
+    parser.add_argument(
+        "-f",
+        "--file",
+        required=True,
+        type=str,
+        help="path to gltf file",
+    )
     parser.add_argument("-s", "--save", action="store_true")
     args: argparse.Namespace = parser.parse_args()
-    # main(args.file, args.save)
-    main("model.glb", args.save)
+    main(args.file, args.save)

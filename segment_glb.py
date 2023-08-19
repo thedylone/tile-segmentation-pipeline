@@ -1,4 +1,5 @@
 """segment glb with draco compression"""
+import argparse
 import io
 import struct
 from collections import defaultdict
@@ -521,16 +522,8 @@ class GLBSegment(BufferAccessor):
             mesh.export_submeshes(Path("."))
 
 
-def main():
+def main() -> None:
     """main"""
-    # BufferAccessor.glb = GLTF.load("model.glb")
-    # buff = BufferAccessor()
-    # data = buff.retrieve_bufferview(1)
-    # decode = DracoPy.decode(data)
-    # print(decode)
-    # import io
-    # im = PIL_Image.open(io.BytesIO(data))
-    # im.show()
     glb = GLBSegment(Path("model.glb"))
     glb.load_meshes()
     glb.meshes[0].seg = np.load("map.npy")
