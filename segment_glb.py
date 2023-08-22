@@ -29,14 +29,16 @@ from gltflib.gltf_resource import GLTFResource, GLBResource, FileResource
 from PIL import Image as PIL_Image
 from tqdm import tqdm
 
+from typing import Optional, Union
+
 
 @dataclass
 class MeshData:
     """MeshData"""
 
-    points: np.ndarray | None
-    faces: np.ndarray | None
-    tex_coord: np.ndarray | None
+    points: Optional[np.ndarray]
+    faces: Optional[np.ndarray]
+    tex_coord: Optional[np.ndarray]
 
     def all(self) -> bool:
         """returns true if all data is present"""
@@ -88,7 +90,9 @@ class BufferAccessor:
 
     glb: GLTF
 
-    def get_accessor(self, accessor_index: int | None) -> Accessor | None:
+    def get_accessor(
+        self, accessor_index: Optional[int]
+    ) -> Optional[Accessor]:
         """returns accessor"""
         if accessor_index is None:
             return None
@@ -96,7 +100,7 @@ class BufferAccessor:
 
     def _get_accessor(self, accessor_index: int) -> Accessor:
         """returns accessor"""
-        accessors: list[Accessor] | None = self.glb.model.accessors
+        accessors: Optional[list[Accessor]] = self.glb.model.accessors
         if accessors is None:
             raise ValueError("No accessors found")
         if accessor_index >= len(accessors):
@@ -105,7 +109,7 @@ class BufferAccessor:
 
     def get_buffer_data(self, buffer: Buffer) -> bytes:
         """get the data from a buffer"""
-        resource: GLBResource | GLTFResource = (
+        resource: Union[GLBResource, GLTFResource] = (
             self.glb.get_glb_resource()
             if buffer.uri is None
             else self.glb.get_resource(buffer.uri)
@@ -116,13 +120,13 @@ class BufferAccessor:
 
     def retrieve_bufferview(self, buffer_view_index: int) -> bytes:
         """returns buffer data"""
-        buffer_views: list[BufferView] | None = self.glb.model.bufferViews
+        buffer_views: Optional[list[BufferView]] = self.glb.model.bufferViews
         if buffer_views is None:
             raise ValueError("No buffer views found")
         if buffer_view_index >= len(buffer_views):
             raise ValueError("Buffer view index out of range")
         buffer_view: BufferView = buffer_views[buffer_view_index]
-        buffers: list[Buffer] | None = self.glb.model.buffers
+        buffers: Optional[list[Buffer]] = self.glb.model.buffers
         if buffers is None:
             raise ValueError("No buffers found")
         buffer: Buffer = buffers[buffer_view.buffer]
@@ -131,7 +135,7 @@ class BufferAccessor:
         end: int = start + buffer_view.byteLength
         return data[start:end]
 
-    def access_buffer(self, accessor_index: int | None) -> bytes:
+    def access_buffer(self, accessor_index: Optional[int]) -> bytes:
         """returns buffer data"""
         if accessor_index is None:
             return b""
@@ -148,42 +152,42 @@ class _Attributes(BufferAccessor):
         self.attributes: Attributes = attributes
 
     @property
-    def position(self) -> Accessor | None:
+    def position(self) -> Optional[Accessor]:
         """returns position"""
         return self.get_accessor(self.attributes.POSITION)
 
     @property
-    def normal(self) -> Accessor | None:
+    def normal(self) -> Optional[Accessor]:
         """returns normal"""
         return self.get_accessor(self.attributes.NORMAL)
 
     @property
-    def tangent(self) -> Accessor | None:
+    def tangent(self) -> Optional[Accessor]:
         """returns tangent"""
         return self.get_accessor(self.attributes.TANGENT)
 
     @property
-    def texcoord_0(self) -> Accessor | None:
+    def texcoord_0(self) -> Optional[Accessor]:
         """returns texcoord_0"""
         return self.get_accessor(self.attributes.TEXCOORD_0)
 
     @property
-    def texcoord_1(self) -> Accessor | None:
+    def texcoord_1(self) -> Optional[Accessor]:
         """returns texcoord_1"""
         return self.get_accessor(self.attributes.TEXCOORD_1)
 
     @property
-    def color_0(self) -> Accessor | None:
+    def color_0(self) -> Optional[Accessor]:
         """returns color_0"""
         return self.get_accessor(self.attributes.COLOR_0)
 
     @property
-    def joints_0(self) -> Accessor | None:
+    def joints_0(self) -> Optional[Accessor]:
         """returns joints_0"""
         return self.get_accessor(self.attributes.JOINTS_0)
 
     @property
-    def weights_0(self) -> Accessor | None:
+    def weights_0(self) -> Optional[Accessor]:
         """returns weights_0"""
         return self.get_accessor(self.attributes.WEIGHTS_0)
 
@@ -193,8 +197,8 @@ class MeshSegment(BufferAccessor):
 
     def __init__(self, primitive: Primitive) -> None:
         self.attributes: _Attributes = _Attributes(primitive.attributes)
-        self.indices: Accessor | None = self.get_accessor(primitive.indices)
-        self.material: Material | None
+        self.indices: Optional[Accessor] = self.get_accessor(primitive.indices)
+        self.material: Optional[Material]
         self.set_material(primitive.material)
         self.data: MeshData = self._get_data()
         self.seg: np.ndarray = np.array([])
@@ -212,19 +216,19 @@ class MeshSegment(BufferAccessor):
         """sets submeshes"""
         self._submeshes = submeshes
 
-    def set_material(self, material_index: int | None) -> None:
+    def set_material(self, material_index: Optional[int]) -> None:
         """sets material"""
         if material_index is None:
             self.material = None
             return
-        materials: list[Material] | None = self.glb.model.materials
+        materials: Optional[list[Material]] = self.glb.model.materials
         if materials is None:
             raise ValueError("No materials found")
         if material_index >= len(materials):
             raise ValueError("Material index out of range")
         self.material = materials[material_index]
 
-    def get_texture_image_bytes(self) -> bytes | None:
+    def get_texture_image_bytes(self) -> Optional[bytes]:
         """returns texture image bytes"""
         if (
             self.material is None
@@ -235,14 +239,14 @@ class MeshSegment(BufferAccessor):
         texture_index: int = (
             self.material.pbrMetallicRoughness.baseColorTexture.index
         )
-        textures: list[Texture] | None = self.glb.model.textures
+        textures: Optional[list[Texture]] = self.glb.model.textures
         if textures is None or texture_index >= len(textures):
             return None
         texture: Texture = textures[texture_index]
         if texture.source is None:
             return None
         image_index: int = texture.source
-        images: list[Image] | None = self.glb.model.images
+        images: Optional[list[Image]] = self.glb.model.images
         if images is None or image_index >= len(images):
             return None
         image: Image = images[image_index]
@@ -250,9 +254,9 @@ class MeshSegment(BufferAccessor):
             return None
         return self.retrieve_bufferview(image.bufferView)
 
-    def get_texture_image(self) -> PIL_Image.Image | None:
+    def get_texture_image(self) -> Optional[PIL_Image.Image]:
         """returns texture image"""
-        data: bytes | None = self.get_texture_image_bytes()
+        data: Optional[bytes] = self.get_texture_image_bytes()
         if data is None:
             return None
         return PIL_Image.open(io.BytesIO(data))
@@ -268,9 +272,9 @@ class MeshSegment(BufferAccessor):
 
     def retrieve_data(self) -> MeshData:
         """retrieves data from attributes accessors"""
-        points: np.ndarray | None = None  # vec3 float
-        faces: np.ndarray | None = None  # vec3 int
-        tex: np.ndarray | None = None  # vec2 float
+        points: Optional[np.ndarray] = None  # vec3 float
+        faces: Optional[np.ndarray] = None  # vec3 int
+        tex: Optional[np.ndarray] = None  # vec2 float
         attr: _Attributes = self.attributes
         if attr.position and attr.position.bufferView:
             index: int = attr.position.bufferView

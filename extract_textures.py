@@ -7,6 +7,8 @@ from gltflib.gltf import GLTF
 from gltflib.gltf_resource import GLBResource, GLTFResource, FileResource
 from PIL import Image
 
+from typing import Optional, Union
+
 
 def gltf_image_to_pillow(
     gltf: GLTF, image: GLTF_Image, index: int, save: bool = False
@@ -42,7 +44,7 @@ def get_gltf_image_data(gltf: GLTF, image: GLTF_Image) -> bytes:
 
 def get_buffer_data(gltf: GLTF, buffer: Buffer) -> bytes:
     """get the data from a buffer"""
-    resource: GLBResource | GLTFResource = (
+    resource: Union[GLBResource, GLTFResource] = (
         gltf.get_glb_resource()
         if buffer.uri is None
         else gltf.get_resource(buffer.uri)
@@ -54,7 +56,7 @@ def get_buffer_data(gltf: GLTF, buffer: Buffer) -> bytes:
 
 def get_image_format(image: GLTF_Image) -> str:
     """get the format of a gltf image"""
-    mime_type: str | None = image.mimeType
+    mime_type: Optional[str] = image.mimeType
     if mime_type is None:
         if image.uri is None:
             raise RuntimeError("Image is missing MIME type and has no URI")

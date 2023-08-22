@@ -10,6 +10,8 @@ from tileset_converter import convert_tileset
 from image_segment import predict_semantic, get_labels
 from segment_glb import GLBSegment, MeshSegment
 
+from typing import Optional
+
 LOG: logging.Logger = logging.getLogger(__name__)
 
 
@@ -45,7 +47,7 @@ class Pipeline:
                 leave=False,
             )
         ):
-            texture: Image | None = mesh.get_texture_image()
+            texture: Optional[Image] = mesh.get_texture_image()
             if texture is None:
                 LOG.warning("Mesh %s has no texture", i)
                 continue

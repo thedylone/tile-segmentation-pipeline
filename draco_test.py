@@ -9,21 +9,17 @@ import numpy as np
 from gltflib import (
     Accessor,
     AccessorType,
-    Asset,
     Attributes,
     Buffer,
     BufferTarget,
     BufferView,
     ComponentType,
-    FileResource,
-    GLBResource,
     GLTFModel,
     Mesh,
-    Node,
     Primitive,
-    Scene,
     Image,
 )
+from gltflib.gltf_resource import FileResource
 from gltflib.gltf import GLTF
 
 # from PIL.Image import Image
@@ -294,7 +290,6 @@ class MeshSegment:
             materials=self.glb.model.materials,
             samplers=self.glb.model.samplers,
             textures=self.glb.model.textures,
-
         )
         resource = FileResource(
             "submesh.bin",
