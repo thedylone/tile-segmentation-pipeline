@@ -42,7 +42,13 @@ class MeshData:
 
     def all(self) -> bool:
         """returns true if all data is present"""
-        return all([self.points, self.faces, self.tex_coord])
+        return all(
+            [
+                self.points is not None,
+                self.faces is not None,
+                self.tex_coord is not None,
+            ]
+        )
 
 
 class SubmeshSegment:

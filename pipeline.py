@@ -20,6 +20,7 @@ class Pipeline:
 
     INPUT_DIR: Path = Path(".")
     OUTPUT_DIR: Path = Path(".")
+    root_uri: Path = Path(".")
     glb_count: int = 0
     GLB_PBAR = tqdm(desc="GLB files", unit=" .glb")
     tileset_count: int = 0
@@ -56,14 +57,28 @@ class Pipeline:
         return meshes
 
     @classmethod
-    def rewrite_tile(cls, tile: Tile, meshes: list[MeshSegment]) -> None:
+    def rewrite_tile(cls, tile: Tile, uri: Path) -> None:
         """rewrite tile"""
-        if meshes is None:
-            return
-        LOG.info("Rewriting tile")
         tile.content = None
         if tile.contents is None:
             tile.contents = []
+        count: str = hex(cls.glb_count)[2:]
+        if (cls.OUTPUT_DIR / f"glb{count}").exists():
+            LOG.info("GLB directory already exists")
+            for file in (cls.OUTPUT_DIR / f"glb{count}").iterdir():
+                tile.contents.append(
+                    {
+                        "uri": f"glb{count}/{file.name}",
+                        "group": int(file.stem.split("_")[1]),
+                    }
+                )
+            cls.glb_count += 1
+            cls.GLB_PBAR.update()
+            return
+        meshes: list[MeshSegment] = cls.get_meshes_segmented(uri)
+        if meshes is None:
+            return
+        LOG.info("Rewriting tile")
         for i, mesh in enumerate(meshes):
             for class_id, submesh in tqdm(
                 mesh.submeshes.items(),
@@ -71,10 +86,9 @@ class Pipeline:
                 unit="submesh",
                 leave=False,
             ):
-                count: str = hex(cls.glb_count)[2:]
-                uri: str = f"glb{count}_mesh{i}_{class_id}.glb"
-                mesh.export_submesh(submesh, cls.OUTPUT_DIR / uri)
-                tile.contents.append({"uri": uri, "group": class_id})
+                _uri: str = f"glb{count}/mesh{i}_{class_id}.glb"
+                mesh.export_submesh(submesh, cls.OUTPUT_DIR / _uri)
+                tile.contents.append({"uri": _uri, "group": class_id})
         cls.glb_count += 1
         cls.GLB_PBAR.update()
 
@@ -84,6 +98,8 @@ class Pipeline:
         LOG.info("Segmenting tileset")
         count: str = hex(cls.tileset_count)[2:]
         cls.tileset_count += 1
+        if tileset.root_uri is not None:
+            cls.root_uri = tileset.root_uri
         convert_tileset(tileset, get_labels())
         cls.segment_tile(tileset.root_tile)
         tileset.write_as_json(cls.OUTPUT_DIR / f"tileset_{count}.json")
@@ -105,12 +121,14 @@ class Pipeline:
             uri_ = uri_[1:]
         uri: Path = cls.INPUT_DIR / uri_
         if not uri.exists():
+            # try tileset root dir
+            uri = cls.root_uri / uri_
+        if not uri.exists():
             LOG.info("File %s does not exist", uri)
             return
         if uri.suffix == ".glb":
             LOG.info("Segmenting tile")
-            meshes: list[MeshSegment] = cls.get_meshes_segmented(uri)
-            cls.rewrite_tile(tile, meshes)
+            cls.rewrite_tile(tile, uri)
         if uri.suffix == ".json":
             count: str = hex(cls.tileset_count)[2:]
             tile.content["uri"] = f"tileset_{count}.json"
