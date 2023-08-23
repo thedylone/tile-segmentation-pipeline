@@ -6,8 +6,8 @@ from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 from py3dtiles.tileset.tileset import TileSet, Tile
 from tileset_converter import convert_tileset
-from get_vertices import load_glb, MeshSegment
-from image_segment import predict_semantic, get_labels
+from get_vertices import MeshSegment
+from image_segment import ImageSegment
 
 
 LOG: logging.Logger = logging.getLogger(__name__)
@@ -16,7 +16,7 @@ OUTPUT_DIR: Path = Path("webserver/public/")
 
 def get_meshes_segmented(path: Path) -> list[MeshSegment]:
     """get meshes segmented"""
-    meshes: list[MeshSegment] = load_glb(path)
+    meshes: list[MeshSegment] = MeshSegment.load_by_path(path)
     for mesh in tqdm(meshes, desc="segmenting", unit="mesh"):
         if mesh.visual is None:
             LOG.warning(f"Mesh {mesh.index} has no visual")
@@ -26,7 +26,7 @@ def get_meshes_segmented(path: Path) -> list[MeshSegment]:
             LOG.warning(f"Mesh {mesh.index} has no texture")
             continue
         LOG.info("Predicting semantic segmentation")
-        mesh.seg = predict_semantic(texture)
+        mesh.seg = ImageSegment(texture).predict_semantic()
     return meshes
 
 
@@ -58,7 +58,7 @@ def pipeline(path: Path) -> None:
     meshes: list[MeshSegment] = get_meshes_segmented(Path(tile.content["uri"]))
     if meshes is None:
         return
-    labels = get_labels()
+    labels = ImageSegment.get_labels()
     LOG.info("Converting tileset")
     convert_tileset(tileset, labels)
     LOG.info("Rewriting tile")

@@ -7,7 +7,7 @@ from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 from py3dtiles.tileset.tileset import TileSet, Tile
 from tileset_converter import convert_tileset
-from image_segment import predict_semantic, get_labels
+from image_segment import ImageSegment
 from segment_glb import GLBSegment, MeshSegment
 
 from typing import Optional
@@ -38,7 +38,11 @@ class Pipeline:
     def get_meshes_segmented(path: Path) -> list[MeshSegment]:
         """get meshes segmented"""
         glb = GLBSegment(path)
-        glb.load_meshes()
+        try:
+            glb.load_meshes()
+        except ValueError as err:
+            LOG.error("Error loading meshes: %s", err)
+            return []
         meshes: list[MeshSegment] = glb.meshes
         for i, mesh in enumerate(
             tqdm(
@@ -53,7 +57,7 @@ class Pipeline:
                 LOG.warning("Mesh %s has no texture", i)
                 continue
             LOG.info("Predicting semantic segmentation")
-            mesh.seg = predict_semantic(texture)
+            mesh.seg = ImageSegment(texture).predict_semantic()
         return meshes
 
     @classmethod
@@ -76,8 +80,6 @@ class Pipeline:
             cls.GLB_PBAR.update()
             return
         meshes: list[MeshSegment] = cls.get_meshes_segmented(uri)
-        if meshes is None:
-            return
         LOG.info("Rewriting tile")
         for i, mesh in enumerate(meshes):
             for class_id, submesh in tqdm(
@@ -100,7 +102,7 @@ class Pipeline:
         cls.tileset_count += 1
         if tileset.root_uri is not None:
             cls.root_uri = tileset.root_uri
-        convert_tileset(tileset, get_labels())
+        convert_tileset(tileset, ImageSegment.get_labels())
         cls.segment_tile(tileset.root_tile)
         tileset.write_as_json(cls.OUTPUT_DIR / f"tileset_{count}.json")
         cls.TILESET_PBAR.update()

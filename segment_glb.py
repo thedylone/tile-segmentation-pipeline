@@ -532,13 +532,29 @@ class GLBSegment(BufferAccessor):
             mesh.export_submeshes(Path("."))
 
 
-def main() -> None:
+def main(glb_path: Path, seg_path: Path) -> None:
     """main"""
-    glb = GLBSegment(Path("model.glb"))
+    glb = GLBSegment(glb_path)
     glb.load_meshes()
-    glb.meshes[0].seg = np.load("map.npy")
+    glb.meshes[0].seg = np.load(seg_path)
     glb.export_submeshes()
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Segment GLB")
+    parser.add_argument(
+        "-f",
+        "--file",
+        type=str,
+        help="GLB file to segment",
+        default="model.glb",
+    )
+    parser.add_argument(
+        "-s",
+        "--seg",
+        type=str,
+        help="Segmentation map",
+        default="map.npy",
+    )
+    args = parser.parse_args()
+    main(Path(args.file), Path(args.seg))

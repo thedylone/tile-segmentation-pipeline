@@ -77,26 +77,26 @@ class MeshSegment:
         ):
             submesh.export(path / f"submesh{self.index}_{class_id}.glb")
 
+    @staticmethod
+    def load_by_path(path: Path) -> list['MeshSegment']:
+        """load glb into list of MeshSegments"""
+        glb = load(path)
+        if isinstance(glb, Scene):
+            return [
+                MeshSegment(mesh, i)
+                for i, mesh in enumerate(glb.geometry.values())
+            ]
+        if isinstance(glb, Trimesh):
+            return [MeshSegment(glb)]
 
-def load_glb(path: Path) -> list[MeshSegment]:
-    """load glb into list of MeshSegments"""
-    glb = load(path)
-    if isinstance(glb, Scene):
-        return [
-            MeshSegment(mesh, i)
-            for i, mesh in enumerate(glb.geometry.values())
-        ]
-    if isinstance(glb, Trimesh):
-        return [MeshSegment(glb)]
-
-    raise ValueError("Unsupported GLB type")
+        raise ValueError("Unsupported GLB type")
 
 
 def main() -> None:
     """main"""
     # seg = torch.load("map.pt")
     seg = np.load("map.npy")
-    meshes: list[MeshSegment] = load_glb(Path("model.gltf"))
+    meshes: list[MeshSegment] = MeshSegment.load_by_path(Path("model.gltf"))
     for mesh in meshes:
         mesh.seg = seg
         mesh.export_submeshes(Path("output"))
