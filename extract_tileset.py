@@ -45,24 +45,34 @@ class TilesetExtractor:
         if tile.content is None:
             return False
         uri_: str = tile.content["uri"]
-        if self.find_name in uri_:
-            LOG.warning("File %s found", self.find_name)
-            return True
         if uri_[0] == "/":
             uri_ = uri_[1:]
         uri: Path = self.INPUT_DIR / uri_
         if not uri.exists():
             # try tileset root dir
             uri = self.root_uri / uri_
+        if self.find_name in uri_:
+            LOG.warning("File %s found", self.find_name)
+            return True
         if not uri.exists():
             LOG.info("File %s does not exist", uri)
+            tile.content = None
             return False
         if uri.suffix == ".json":
             tileset: TileSet = TileSet.from_file(uri)
+            root_uri: Path = self.root_uri
             if self.search_tileset(tileset):
-                # tileset.write_as_json(self.OUTPUT_DIR / uri.name)
-                tileset.write_to_directory(self.OUTPUT_DIR / uri.name)
+                Path.mkdir(
+                    self.OUTPUT_DIR
+                    / Path.relative_to(uri, self.INPUT_DIR).parent,
+                    parents=True,
+                    exist_ok=True,
+                )
+                tileset.write_as_json(
+                    self.OUTPUT_DIR / Path.relative_to(uri, self.INPUT_DIR)
+                )
                 return True
+            self.root_uri = root_uri
         return False
 
     def search_tile_children(self, tile: Tile) -> bool:
@@ -80,11 +90,11 @@ class TilesetExtractor:
     def extract_tileset(self, tileset_name: str) -> bool:
         """extract tileset"""
         LOG.info("Loading tileset")
+        Path.mkdir(self.OUTPUT_DIR, parents=True, exist_ok=True)
         tileset: TileSet = TileSet.from_file(self.INPUT_DIR / tileset_name)
         if self.search_tileset(tileset):
             LOG.info("Writing tileset")
-            # tileset.write_as_json(cls.OUTPUT_DIR / tileset_name)
-            tileset.write_to_directory(self.OUTPUT_DIR / tileset_name)
+            tileset.write_as_json(self.OUTPUT_DIR / "extract.json")
             return True
         return False
 
@@ -149,23 +159,14 @@ class LatLongExtractor(TilesetExtractor):
             return True
         return False
 
-    def search_tile(self, tile: Tile) -> bool:
-        """search tile"""
-        self.TILE_PBAR.update()
-        if self.check_tile_centre_in_bounds(tile, self.bounds):
-            LOG.warning("Tile within bounds")
-            return True
-        if self.search_tile_content(tile):
-            return True
-        if self.search_tile_children(tile):
-            return True
-        return False
-
     def search_tile_content(
         self,
         tile: Tile,
     ) -> bool:
         """search tile content"""
+        if self.check_tile_centre_in_bounds(tile, self.bounds):
+            LOG.warning("Tile within bounds")
+            return True
         if tile.content is None:
             return False
         uri_: str = tile.content["uri"]
@@ -182,7 +183,15 @@ class LatLongExtractor(TilesetExtractor):
             tileset: TileSet = TileSet.from_file(uri)
             if self.search_tileset(tileset):
                 # tileset.write_as_json(cls.OUTPUT_DIR / uri.name)
-                tileset.write_to_directory(self.OUTPUT_DIR / uri.name)
+                Path.mkdir(
+                    self.OUTPUT_DIR
+                    / Path.relative_to(uri, self.INPUT_DIR).parent,
+                    parents=True,
+                    exist_ok=True,
+                )
+                tileset.write_to_directory(
+                    self.OUTPUT_DIR / Path.relative_to(uri, self.INPUT_DIR)
+                )
                 return True
         return False
 
@@ -238,7 +247,7 @@ if __name__ == "__main__":
     with logging_redirect_tqdm():
         # extractor = TilesetExtractor(args.search_name)
         extractor = LatLongExtractor(
-            np.array(((1.363576, 103.833545), (1.343302, 103.857372))),
+            np.array(((1.348624, 103.846614), (1.352935, 103.851957))),
         )
         if extractor.extract_tileset(args.filename):
             LOG.info("Tileset extracted")

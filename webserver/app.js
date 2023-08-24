@@ -6,7 +6,8 @@ const PORT = process.env.PORT || 3000;
 const app = express();
 
 app.use(express.static('public'));
-app.use(express.static('../input'))
+app.use(express.static('../output'));
+app.use(express.static('../input'));
 app.use('/cesium', express.static(__dirname + '/node_modules/cesium/Build/Cesium'));
 app.use(cors());
 
