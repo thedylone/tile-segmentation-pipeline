@@ -21,14 +21,36 @@ const viewer = new Cesium.Viewer("cesiumContainer", {
 // viewer.scene.primitives.add(buildingTileset); 
 
 // load 3d tileset data
-const tileset = await Cesium.Cesium3DTileset.fromUrl("./root.json");
-viewer.scene.primitives.add(tileset);
+const tileset = viewer.scene.primitives.add(
+    await Cesium.Cesium3DTileset.fromUrl("./extract.json")
+);
 
 // fly to singapore
 viewer.camera.flyTo({
-    destination: Cesium.Cartesian3.fromDegrees(103.851959, 1.290270, 1000.0),
-    orientation: {
-        heading: Cesium.Math.toRadians(0.0),
-        pitch: Cesium.Math.toRadians(-90.0),
-    },
+    destination: new Cesium.Cartesian3.fromDegrees(103.847664, 1.350376, 1000.0),
 });
+
+const customShader = new Cesium.CustomShader({
+    fragmentShaderText: `
+      void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material) {
+        int id = fsInput.featureIds.featureId_0;
+        vec3 color = vec3(0.0, 0.0, 0.0);
+        if (id == 2) {
+          color = vec3(0.0, 0.0, 1.0);
+        } else if (id == 8) {
+          color = vec3(0.0, 1.0, 0.0);
+        }
+        material.diffuse = color;
+      }
+    `,
+});
+
+tileset.customShader = customShader;
+
+// add button to toggle custom shader
+const button = document.createElement("button");
+button.textContent = "Toggle Custom Shader";
+button.onclick = () => {
+    tileset.customShader = tileset.customShader ? undefined : customShader;
+}
+viewer.container.appendChild(button);

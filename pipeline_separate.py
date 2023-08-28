@@ -6,8 +6,9 @@ from PIL.Image import Image
 from tqdm import tqdm
 from tqdm.contrib.logging import logging_redirect_tqdm
 from py3dtiles.tileset.tileset import TileSet, Tile
+from tileset_converter import convert_tileset
 from image_segment import ImageSegment
-from segment_glb import GLBSegment
+from segment_glb_separate import GLBSegment, MeshSegment
 
 from typing import Optional
 
@@ -20,61 +21,90 @@ class Pipeline:
     INPUT_DIR: Path = Path(".")
     OUTPUT_DIR: Path = Path(".")
     root_uri: Path = Path(".")
+    glb_count: int = 0
     GLB_PBAR = tqdm(desc="GLB files", unit=" .glb")
+    tileset_count: int = 0
     TILESET_PBAR = tqdm(desc="Tilesets", unit=" tileset")
 
     @classmethod
     def reset(cls) -> None:
         """reset counts"""
+        cls.glb_count = 0
+        cls.tileset_count = 0
         cls.GLB_PBAR.reset()
         cls.TILESET_PBAR.reset()
 
     @staticmethod
-    def get_classified_glb(path: Path) -> Optional[GLBSegment]:
+    def get_meshes_segmented(path: Path) -> list[MeshSegment]:
         """get meshes segmented"""
         glb = GLBSegment(path)
         try:
             glb.load_meshes()
         except ValueError as err:
             LOG.error("Error loading meshes: %s", err)
-            return None
-        for mesh in glb.meshes:
-            for primitive in tqdm(
-                mesh,
+            return []
+        meshes: list[MeshSegment] = glb.meshes
+        for i, mesh in enumerate(
+            tqdm(
+                meshes,
                 desc="Segmenting textures",
                 unit="texture",
                 leave=False,
-            ):
-                texture: Optional[Image] = primitive.get_texture_image()
-                if texture is None:
-                    LOG.warning("Primitive in %s has no texture", path)
-                    continue
-                LOG.info("Predicting semantic segmentation")
-                primitive.seg = ImageSegment(texture).predict_semantic()
-                primitive.classify_points()
-        return glb
+            )
+        ):
+            texture: Optional[Image] = mesh.get_texture_image()
+            if texture is None:
+                LOG.warning("Mesh %s has no texture", i)
+                continue
+            LOG.info("Predicting semantic segmentation")
+            mesh.seg = ImageSegment(texture).predict_semantic()
+        return meshes
 
     @classmethod
-    def export_classified_glb(cls, uri: Path) -> None:
+    def rewrite_tile(cls, tile: Tile, uri: Path) -> None:
         """rewrite tile"""
-        uri_: Path = uri.relative_to(cls.INPUT_DIR)
-        if (cls.OUTPUT_DIR / uri_).exists():
+        tile.content = None
+        if tile.contents is None:
+            tile.contents = []
+        count: str = hex(cls.glb_count)[2:]
+        if (cls.OUTPUT_DIR / f"glb{count}").exists():
             LOG.info("GLB directory already exists")
+            for file in (cls.OUTPUT_DIR / f"glb{count}").iterdir():
+                tile.contents.append(
+                    {
+                        "uri": f"glb{count}/{file.name}",
+                        "group": int(file.stem.split("_")[1]),
+                    }
+                )
+            cls.glb_count += 1
             cls.GLB_PBAR.update()
             return
-        glb: Optional[GLBSegment] = cls.get_classified_glb(uri)
-        if glb is None:
-            return
-        glb.export(cls.OUTPUT_DIR / uri_)
+        meshes: list[MeshSegment] = cls.get_meshes_segmented(uri)
+        LOG.info("Rewriting tile")
+        for i, mesh in enumerate(meshes):
+            for class_id, submesh in tqdm(
+                mesh.submeshes.items(),
+                desc="Exporting submeshes",
+                unit="submesh",
+                leave=False,
+            ):
+                _uri: str = f"glb{count}/mesh{i}_{class_id}.glb"
+                mesh.export_submesh(submesh, cls.OUTPUT_DIR / _uri)
+                tile.contents.append({"uri": _uri, "group": class_id})
+        cls.glb_count += 1
         cls.GLB_PBAR.update()
 
     @classmethod
     def segment_tileset(cls, tileset: TileSet) -> None:
         """segment tileset"""
         LOG.info("Segmenting tileset")
+        count: str = hex(cls.tileset_count)[2:]
+        cls.tileset_count += 1
         if tileset.root_uri is not None:
             cls.root_uri = tileset.root_uri
+        convert_tileset(tileset, ImageSegment.get_labels())
         cls.segment_tile(tileset.root_tile)
+        tileset.write_as_json(cls.OUTPUT_DIR / f"tileset_{count}.json")
         cls.TILESET_PBAR.update()
 
     @staticmethod
@@ -100,8 +130,10 @@ class Pipeline:
             return
         if uri.suffix == ".glb":
             LOG.info("Segmenting tile")
-            cls.export_classified_glb(uri)
+            cls.rewrite_tile(tile, uri)
         if uri.suffix == ".json":
+            count: str = hex(cls.tileset_count)[2:]
+            tile.content["uri"] = f"tileset_{count}.json"
             cls.segment_tileset(TileSet.from_file(uri))
 
     @classmethod

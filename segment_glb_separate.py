@@ -2,21 +2,23 @@
 import argparse
 import io
 import struct
+from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-
-from typing import Optional, Union
 
 import DracoPy
 import numpy as np
 from gltflib import (
     Accessor,
     AccessorType,
+    Asset,
     Attributes,
     Buffer,
     BufferTarget,
     BufferView,
     ComponentType,
+    GLTFModel,
+    Mesh,
     Primitive,
     Material,
     Image,
@@ -27,28 +29,30 @@ from gltflib.gltf_resource import GLTFResource, GLBResource, FileResource
 from PIL import Image as PIL_Image
 from tqdm import tqdm
 
+from typing import Optional, Union
+
 
 @dataclass
 class MeshData:
     """MeshData"""
 
-    points: np.ndarray
-    faces: np.ndarray
-    tex_coord: np.ndarray
+    points: Optional[np.ndarray]
+    faces: Optional[np.ndarray]
+    tex_coord: Optional[np.ndarray]
 
     def all(self) -> bool:
         """returns true if all data is present"""
         return all(
             [
-                self.points.size > 0,
-                self.faces.size > 0,
-                self.tex_coord.size > 0,
+                self.points is not None,
+                self.faces is not None,
+                self.tex_coord is not None,
             ]
         )
 
 
-class SubPrimitiveSeg:
-    """SubPrimitiveSeg"""
+class SubmeshSegment:
+    """SubmeshSegment"""
 
     points: np.ndarray
     tex_coord: np.ndarray
@@ -194,38 +198,41 @@ class _Attributes(BufferAccessor):
         return self.get_accessor(self.attributes.WEIGHTS_0)
 
 
-class PrimitiveSeg(BufferAccessor):
-    """PrimitiveSeg"""
+class MeshSegment(BufferAccessor):
+    """MeshSegment"""
 
     def __init__(self, primitive: Primitive) -> None:
-        self.primitive: Primitive = primitive
         self.attributes: _Attributes = _Attributes(primitive.attributes)
         self.indices: Optional[Accessor] = self.get_accessor(primitive.indices)
+        self.material: Optional[Material]
+        self.set_material(primitive.material)
         self.data: MeshData = self._get_data()
         self.seg: np.ndarray = np.array([])
-        self.vertices_to_class: list[int] = [-1] * self.data.points.shape[0]
+        self.vertices_to_class = defaultdict(lambda: -1)
 
     @property
-    def material(self) -> Optional[Material]:
-        """returns material"""
-        if not hasattr(self, "_material"):
-            self._material: Optional[Material] = self.get_material(
-                self.primitive.material
-            )
-        return self._material
+    def submeshes(self) -> dict[int, SubmeshSegment]:
+        """returns submeshes"""
+        if not hasattr(self, "_submeshes") or self._submeshes is None:
+            self._submeshes: dict[int, SubmeshSegment] = self._get_submeshes()
+        return self._submeshes
 
-    def get_material(
-        self, material_index: Optional[int]
-    ) -> Optional[Material]:
+    @submeshes.setter
+    def submeshes(self, submeshes: dict[int, SubmeshSegment]) -> None:
+        """sets submeshes"""
+        self._submeshes = submeshes
+
+    def set_material(self, material_index: Optional[int]) -> None:
         """sets material"""
         if material_index is None:
-            return None
+            self.material = None
+            return
         materials: Optional[list[Material]] = self.glb.model.materials
         if materials is None:
             raise ValueError("No materials found")
         if material_index >= len(materials):
             raise ValueError("Material index out of range")
-        return materials[material_index]
+        self.material = materials[material_index]
 
     def get_texture_image_bytes(self) -> Optional[bytes]:
         """returns texture image bytes"""
@@ -271,9 +278,9 @@ class PrimitiveSeg(BufferAccessor):
 
     def retrieve_data(self) -> MeshData:
         """retrieves data from attributes accessors"""
-        points: np.ndarray = np.array([])  # vec3 float
-        faces: np.ndarray = np.array([])  # vec3 int
-        tex: np.ndarray = np.array([])  # vec2 float
+        points: Optional[np.ndarray] = None  # vec3 float
+        faces: Optional[np.ndarray] = None  # vec3 int
+        tex: Optional[np.ndarray] = None  # vec2 float
         attr: _Attributes = self.attributes
         if attr.position and attr.position.bufferView:
             index: int = attr.position.bufferView
@@ -335,15 +342,163 @@ class PrimitiveSeg(BufferAccessor):
         self.vertices_to_class[vertex] = class_id
         return class_id
 
-    def classify_points(self) -> None:
-        """classifies points and stores in vertices_to_class"""
-        for vertex in tqdm(
-            range(self.data.points.shape[0]),
-            desc="Classifying points",
-            unit="point",
+    def _get_submeshes(self) -> dict[int, SubmeshSegment]:
+        """returns submeshes"""
+        if self.data is None:
+            raise ValueError("No data found")
+        if (
+            self.data.points is None
+            or self.data.faces is None
+            or self.data.tex_coord is None
+        ):
+            raise ValueError("No data found")
+        SubmeshSegment.points = self.data.points
+        SubmeshSegment.tex_coord = self.data.tex_coord
+        submeshes = defaultdict(SubmeshSegment)
+        for face in tqdm(
+            self.data.faces,
+            desc="Loading faces",
+            unit="face",
             leave=False,
         ):
-            self._get_vertex_class(vertex)
+            for vertex in face:
+                class_id: int = self._get_vertex_class(vertex)
+                submeshes[class_id].add_face(face)
+        return submeshes
+
+    def export_submeshes(self, path: Path) -> None:
+        """exports submeshes"""
+        for class_id, submesh in tqdm(
+            self.submeshes.items(), desc="Exporting submeshes", unit="submesh"
+        ):
+            self.export_submesh(submesh, path / f"submesh_{class_id}.glb")
+
+    def export_submesh(self, submesh: SubmeshSegment, path: Path) -> None:
+        """exports submesh to path"""
+        vertex_bytearray = bytearray()
+        vertex_max: list[float] = [float("-inf")] * 3
+        vertex_min: list[float] = [float("inf")] * 3
+        face_bytearray = bytearray()
+        tex_coord_bytearray = bytearray()
+        image_bytearray: bytes = self.get_texture_image_bytes() or b""
+        for vertex in submesh.vertices:
+            for i, value in enumerate(vertex):
+                vertex_bytearray.extend(struct.pack("f", value))
+                vertex_max[i] = max(vertex_max[i], value)
+                vertex_min[i] = min(vertex_min[i], value)
+        for face in submesh.faces:
+            for value in face:
+                face_bytearray.extend(struct.pack("H", value))
+        for tex_coord in submesh.uv_coords:
+            for value in tex_coord:
+                tex_coord_bytearray.extend(struct.pack("f", value))
+        vertex_bytelen: int = len(vertex_bytearray)
+        face_bytelen: int = len(face_bytearray)
+        tex_coord_bytelen: int = len(tex_coord_bytearray)
+        image_bytelen: int = len(image_bytearray) if image_bytearray else 0
+        model = GLTFModel(
+            accessors=[
+                # position
+                Accessor(
+                    bufferView=0,
+                    byteOffset=0,
+                    componentType=ComponentType.FLOAT.value,
+                    count=len(submesh.vertices),
+                    type=AccessorType.VEC3.value,
+                    max=vertex_max,
+                    min=vertex_min,
+                ),
+                # faces
+                Accessor(
+                    bufferView=1,
+                    byteOffset=0,
+                    componentType=ComponentType.UNSIGNED_SHORT.value,
+                    count=len(submesh.faces),
+                    type=AccessorType.SCALAR.value,
+                ),
+                # tex coords
+                Accessor(
+                    bufferView=2,
+                    byteOffset=0,
+                    componentType=ComponentType.FLOAT.value,
+                    count=len(submesh.uv_coords),
+                    type=AccessorType.VEC2.value,
+                ),
+            ],
+            asset=Asset(version="2.0"),
+            extensionsUsed=self.glb.model.extensionsUsed,
+            # scenes=[Scene(nodes=[0])],
+            scenes=self.glb.model.scenes,
+            nodes=self.glb.model.nodes,
+            meshes=[
+                Mesh(
+                    primitives=[
+                        Primitive(
+                            attributes=Attributes(POSITION=0, TEXCOORD_0=2),
+                            indices=1,
+                            material=0,
+                        )
+                    ]
+                )
+            ],
+            buffers=[
+                Buffer(
+                    byteLength=vertex_bytelen
+                    + face_bytelen
+                    + tex_coord_bytelen
+                    + image_bytelen,
+                    uri="submesh.bin",
+                )
+            ],
+            bufferViews=[
+                BufferView(
+                    buffer=0,
+                    byteOffset=0,
+                    byteLength=vertex_bytelen,
+                    target=BufferTarget.ARRAY_BUFFER.value,
+                ),
+                BufferView(
+                    buffer=0,
+                    byteOffset=vertex_bytelen,
+                    byteLength=face_bytelen,
+                    target=BufferTarget.ELEMENT_ARRAY_BUFFER.value,
+                ),
+                BufferView(
+                    buffer=0,
+                    byteOffset=vertex_bytelen + face_bytelen,
+                    byteLength=tex_coord_bytelen,
+                    target=BufferTarget.ARRAY_BUFFER.value,
+                ),
+                BufferView(
+                    buffer=0,
+                    byteOffset=vertex_bytelen
+                    + face_bytelen
+                    + tex_coord_bytelen,
+                    byteLength=image_bytelen,
+                ),
+            ],
+            # images=self.glb.model.images,
+            images=[
+                Image(
+                    mimeType="image/jpeg",
+                    bufferView=3,
+                )
+            ],
+            materials=[self.material] if self.material else None,
+            samplers=self.glb.model.samplers,
+            textures=[Texture(sampler=0, source=0)]
+            if image_bytearray
+            else None,
+        )
+        resource = FileResource(
+            "submesh.bin",
+            data=vertex_bytearray
+            + face_bytearray
+            + tex_coord_bytearray
+            + image_bytearray,
+        )
+        glb = GLTF(model=model, resources=[resource])
+        glb.export(str(path))
 
 
 class GLBSegment(BufferAccessor):
@@ -351,7 +506,7 @@ class GLBSegment(BufferAccessor):
 
     def __init__(self, path: Path) -> None:
         BufferAccessor.glb = GLTF.load(str(path))
-        self.meshes: list[list[PrimitiveSeg]] = []
+        self.meshes: list[MeshSegment] = []
 
     def load_meshes(self) -> None:
         """loads meshes"""
@@ -363,89 +518,26 @@ class GLBSegment(BufferAccessor):
             unit="mesh",
             leave=False,
         ):
-            primitives = []
             for primitive in tqdm(
                 mesh.primitives,
                 desc="Loading primitives",
                 unit="primitive",
                 leave=False,
             ):
-                primitives.append(PrimitiveSeg(primitive))
-            self.meshes.append(primitives)
+                self.meshes.append(MeshSegment(primitive))
 
-    def export(self, path: Path) -> None:
-        """exports glb"""
-        if self.glb.model.meshes is None:
-            return
-        if self.glb.model.buffers is None:
-            self.glb.model.buffers = []
-        if self.glb.model.bufferViews is None:
-            self.glb.model.bufferViews = []
-        if self.glb.model.accessors is None:
-            self.glb.model.accessors = []
-        if self.glb.model.extensionsUsed is None:
-            self.glb.model.extensionsUsed = []
-        for mesh in tqdm(
-            self.meshes,
-            desc="Exporting mesh",
-            unit="mesh",
-            leave=False,
-        ):
-            for primitive_seg in mesh:
-                primitive: Primitive = primitive_seg.primitive
-                feature_bytearray = bytearray()
-                for vertex in primitive_seg.vertices_to_class:
-                    feature_bytearray.extend(struct.pack("f", vertex))
-                feature_bytelen: int = len(feature_bytearray)
-                if primitive.extensions is None:
-                    primitive.extensions = {}
-                primitive.extensions["EXT_mesh_features"] = {
-                    "featureIds": [
-                        {
-                            "featureCount": len(
-                                set(primitive_seg.vertices_to_class)
-                            ),
-                            "attribute": 0,
-                        }
-                    ]
-                }
-                primitive.attributes._FEATURE_ID_0 = len(
-                    self.glb.model.accessors
-                )
-                self.glb.model.accessors.append(
-                    Accessor(
-                        bufferView=len(self.glb.model.bufferViews),
-                        byteOffset=0,
-                        componentType=ComponentType.FLOAT.value,
-                        count=primitive_seg.data.points.shape[0],
-                        type=AccessorType.SCALAR.value,
-                        normalized=False,
-                    )
-                )
-                self.glb.model.bufferViews.append(
-                    BufferView(
-                        buffer=0,
-                        byteOffset=len(self.glb.get_glb_resource().data),
-                        byteLength=feature_bytelen,
-                        byteStride=4,
-                        target=BufferTarget.ARRAY_BUFFER.value,
-                    )
-                )
-                self.glb.model.buffers[0].byteLength += feature_bytelen
-                self.glb.glb_resources[0].data += feature_bytearray
-        self.glb.model.extensionsUsed.append("EXT_mesh_features")
-        self.glb.export(str(path))
+    def export_submeshes(self) -> None:
+        """exports submeshes"""
+        for mesh in tqdm(self.meshes, desc="Exporting mesh", unit="mesh"):
+            mesh.export_submeshes(Path("."))
 
 
 def main(glb_path: Path, seg_path: Path) -> None:
     """main"""
     glb = GLBSegment(glb_path)
     glb.load_meshes()
-    for mesh in glb.meshes:
-        for primitive in mesh:
-            primitive.seg = np.load(seg_path)
-            primitive.classify_points()
-    glb.export("test" / glb_path)
+    glb.meshes[0].seg = np.load(seg_path)
+    glb.export_submeshes()
 
 
 if __name__ == "__main__":
