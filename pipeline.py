@@ -16,16 +16,55 @@ LOG: logging.Logger = logging.getLogger(__name__)
 
 
 class Pipeline(TilesetTraverser):
-    """pipeline for segmenting glb files in 3d tilesets"""
+    """pipeline for segmenting glb files in 3D tilesets
+
+    exports each glb file into a new glb file with metadata for each
+    subprimitive
+
+    attributes
+    ----------
+    INPUT_DIR: pathlib.Path
+        input directory of the tileset
+    OUTPUT_DIR: pathlib.Path
+        output directory of the tileset
+    root_uri: pathlib.Path
+        root uri of the tileset to resolve relative paths
+    glb_count: int
+        number of glb files segmented
+    GLB_PBAR: tqdm.tqdm
+        progress bar for glb files
+    tileset_count: int
+        number of tilesets segmented
+    TILESET_PBAR: tqdm.tqdm
+        progress bar for tilesets
+
+    examples
+    --------
+    >>> Pipeline.INPUT_DIR = Path("input")
+    >>> Pipeline.OUTPUT_DIR = Path("output")
+    >>> Pipeline.pipeline(Path("tileset.json"))
+
+    """
 
     glb_count: int = 0
+    """number of glb files segmented"""
+
     GLB_PBAR = tqdm(desc="GLB files", unit=" .glb")
+    """progress bar for glb files"""
+
     tileset_count: int = 0
+    """number of tilesets segmented"""
+
     TILESET_PBAR = tqdm(desc="Tilesets", unit=" tileset")
+    """progress bar for tilesets"""
 
     @classmethod
     def reset(cls) -> None:
-        """reset counts"""
+        """reset the counters and progress bars
+
+        this method should be called before running the pipeline again
+
+        """
         cls.glb_count = 0
         cls.tileset_count = 0
         cls.GLB_PBAR.reset()
@@ -33,7 +72,21 @@ class Pipeline(TilesetTraverser):
 
     @staticmethod
     def get_classified_glb(path: Path) -> Optional[GLBSegment]:
-        """get meshes segmented"""
+        """returns a GLBSegment with subprimitives classified by semantic
+        segmentation of the texture image
+
+        parameters
+        ----------
+        path: pathlib.Path
+            path to glb file
+
+        returns
+        -------
+        GLBSegment or None
+            GLBSegment with subprimitives classified by semantic segmentation
+            of the texture image or None if the GLBSegment could not be loaded
+
+        """
         glb = GLBSegment(path)
         try:
             glb.load_meshes()
@@ -60,7 +113,15 @@ class Pipeline(TilesetTraverser):
 
     @classmethod
     def export_classified_glb(cls, uri: Path) -> None:
-        """export classified glb"""
+        """exports a GLBSegment with subprimitives classified by semantic
+        segmentation of the texture image
+
+        parameters
+        ----------
+        uri: pathlib.Path
+            path to glb file
+
+        """
         uri_: Path = uri.relative_to(cls.INPUT_DIR)
         if (cls.OUTPUT_DIR / uri_).exists():
             LOG.info("GLB directory already exists")
@@ -75,7 +136,14 @@ class Pipeline(TilesetTraverser):
 
     @classmethod
     def segment_tileset(cls, tileset: TileSet) -> None:
-        """segment tileset"""
+        """traverse tileset and segment root tile
+
+        parameters
+        ----------
+        tileset: py3dtiles.tileset.TileSet
+            tileset to traverse
+
+        """
         LOG.info("Segmenting tileset")
         cls.tileset_count += 1
         cls.segment_tile(cls.get_tileset_tile(tileset))
@@ -83,13 +151,31 @@ class Pipeline(TilesetTraverser):
 
     @classmethod
     def segment_tile(cls, tile: Tile) -> None:
-        """segment tile"""
+        """traverse tile and segment content and children
+
+        parameters
+        ----------
+        tile: py3dtiles.tile.Tile
+            tile to traverse
+
+        """
         cls.convert_tile_content(tile)
         cls.convert_tile_children(tile)
 
     @classmethod
     def convert_tile_content(cls, tile: Tile) -> None:
-        """convert tile content"""
+        """convert tile content for glb files and tilesets
+
+        if content is a glb file, export a GLBSegment with subprimitives
+        classified by semantic segmentation of the texture image. if content is
+        a tileset, segment the tileset
+
+        parameters
+        ----------
+        tile: py3dtiles.tile.Tile
+            tile to convert
+
+        """
         uri: Optional[Path] = cls.get_tile_content(tile)
         if uri is None:
             return
@@ -101,7 +187,14 @@ class Pipeline(TilesetTraverser):
 
     @classmethod
     def convert_tile_children(cls, tile: Tile) -> None:
-        """convert tile children"""
+        """convert tile children by segmenting each child tile
+
+        parameters
+        ----------
+        tile: py3dtiles.tile.Tile
+            tile to convert
+
+        """
         if tile.children is None:
             return
         for child in tile.children:
@@ -109,7 +202,18 @@ class Pipeline(TilesetTraverser):
 
     @classmethod
     def pipeline(cls, path: Path) -> None:
-        """pipeline"""
+        """
+        pipeline for segmenting glb files in 3D tilesets
+
+        exports each glb file into a new glb file with metadata for each
+        subprimitive
+
+        parameters
+        ----------
+        path: pathlib.Path
+            path to tileset
+
+        """
         LOG.info("Starting segmentation")
         LOG.info("Loading tileset")
         tileset: TileSet = TileSet.from_file(cls.INPUT_DIR / path)
@@ -118,11 +222,38 @@ class Pipeline(TilesetTraverser):
 
 
 class PipelineSeparate(Pipeline):
-    """pipeline for segmenting glb files in 3d tilesets"""
+    """pipeline for segmenting glb files in 3D tilesets
+
+    exports each subprimitive into a new glb file and exports the tileset
+    with updated metadata and content uris
+
+    attributes
+    ----------
+    INPUT_DIR: pathlib.Path
+        input directory of the tileset
+    OUTPUT_DIR: pathlib.Path
+        output directory of the tileset
+    root_uri: pathlib.Path
+        root uri of the tileset to resolve relative paths
+    glb_count: int
+        number of glb files segmented
+    GLB_PBAR: tqdm.tqdm
+        progress bar for glb files
+    tileset_count: int
+        number of tilesets segmented
+    TILESET_PBAR: tqdm.tqdm
+        progress bar for tilesets
+
+    examples
+    --------
+    >>> PipelineSeparate.INPUT_DIR = Path("input")
+    >>> PipelineSeparate.OUTPUT_DIR = Path("output")
+    >>> PipelineSeparate.pipeline(Path("tileset.json"))
+
+    """
 
     @classmethod
     def segment_tileset(cls, tileset: TileSet) -> None:
-        """segment tileset"""
         LOG.info("Segmenting tileset")
         count: str = hex(cls.tileset_count)[2:]
         cls.tileset_count += 1
@@ -135,7 +266,6 @@ class PipelineSeparate(Pipeline):
 
     @classmethod
     def convert_tile_content(cls, tile: Tile) -> None:
-        """convert tile content"""
         if tile.content is None:
             return
         uri: Optional[Path] = cls.get_tile_content(tile)
@@ -150,8 +280,17 @@ class PipelineSeparate(Pipeline):
             cls.segment_tileset(TileSet.from_file(uri))
 
     @classmethod
-    def rewrite_tile(cls, tile, uri: Path) -> None:
-        """rewrite tile"""
+    def rewrite_tile(cls, tile: Tile, uri: Path) -> None:
+        """rewrite tile content and append subprimitives to tile contents
+
+        parameters
+        ----------
+        tile: py3dtiles.tile.Tile
+            tile to rewrite
+        uri: pathlib.Path
+            path to glb file
+
+        """
         tile.content = None
         if tile.contents is None:
             tile.contents = []
@@ -182,6 +321,20 @@ class PipelineSeparate(Pipeline):
                     tile.contents.append({"uri": _uri, "group": class_id})
         cls.glb_count += 1
         cls.GLB_PBAR.update()
+
+    @classmethod
+    def pipeline(cls, path: Path) -> None:
+        """pipeline for segmenting glb files in 3D tilesets
+
+        exports each subprimitive into a new glb file
+
+        parameters
+        ----------
+        path: pathlib.Path
+            path to tileset
+
+        """
+        super().pipeline(path)
 
 
 if __name__ == "__main__":

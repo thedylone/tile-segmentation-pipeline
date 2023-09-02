@@ -10,18 +10,54 @@ from PIL import Image
 
 
 def gltf_image_to_pillow(
-    gltf: GLTF, image: GLTF_Image, index: int, save: bool = False
+    gltf: GLTF,
+    image: GLTF_Image,
+    save: bool = False,
+    savepath: str = "",
 ) -> Image.Image:
-    """return a gltf image as a pillow image. optionally save it to a file"""
+    """return a gltf image as a pillow image. optionally save it to a file
+
+    parameters
+    ----------
+    gltf: gltflib.GLTF
+        gltf object which contains the image
+    image: gltflib.Image
+        gltf image to convert
+    save: bool
+        whether to save the image to a file. defaults to False
+    savepath: str
+        path to save the image to. the path should not include the file
+        extension. defaults to the current directory
+
+    returns
+    -------
+    PIL.Image.Image
+        pillow image
+
+    """
     data: bytes = get_gltf_image_data(gltf, image)
     img: Image.Image = Image.open(io.BytesIO(data))
     if save:
-        img.save(f"output/image{index}.{get_image_format(image)}")
+        img.save(f"{savepath}.{get_image_format(image)}")
     return img
 
 
 def get_gltf_image_data(gltf: GLTF, image: GLTF_Image) -> bytes:
-    """get the data from a gltf image"""
+    """get the bytes data from a gltf image
+
+    parameters
+    ----------
+    gltf: gltflib.GLTF
+        gltf object which contains the image
+    image: gltflib.Image
+        gltf image to get the data from
+
+    returns
+    -------
+    bytes
+        image data
+
+    """
     if image.uri is None:
         if gltf.model.bufferViews is None:
             raise ValueError("Model has no bufferViews")
@@ -42,7 +78,21 @@ def get_gltf_image_data(gltf: GLTF, image: GLTF_Image) -> bytes:
 
 
 def get_buffer_data(gltf: GLTF, buffer: Buffer) -> bytes:
-    """get the data from a buffer"""
+    """get the bytes data from a buffer
+
+    parameters
+    ----------
+    gltf: gltflib.GLTF
+        gltf object which contains the buffer
+    buffer: gltflib.Buffer
+        buffer to get the data from
+
+    returns
+    -------
+    bytes
+        buffer data
+
+    """
     resource: Union[GLBResource, GLTFResource] = (
         gltf.get_glb_resource()
         if buffer.uri is None
@@ -54,7 +104,19 @@ def get_buffer_data(gltf: GLTF, buffer: Buffer) -> bytes:
 
 
 def get_image_format(image: GLTF_Image) -> str:
-    """get the format of a gltf image"""
+    """get the format of a gltf image
+
+    parameters
+    ----------
+    image: gltflib.Image
+        gltf image to get the format of
+
+    returns
+    -------
+    str
+        image format (png or jpg)
+
+    """
     mime_type: Optional[str] = image.mimeType
     if mime_type is None:
         if image.uri is None:
@@ -67,19 +129,37 @@ def get_image_format(image: GLTF_Image) -> str:
     raise RuntimeError(f"Unsupported image MIME type: {mime_type}")
 
 
-def glb_to_pillow(gltf: GLTF, save: bool = False) -> list[Image.Image]:
-    """return a list of pillow images from a gltf file"""
+def glb_to_pillow(
+    gltf: GLTF, save: bool = False, savepath: str = "."
+) -> list[Image.Image]:
+    """return a list of pillow images from a gltf file
+
+    parameters
+    ----------
+    gltf: gltflib.GLTF
+        gltf object to get the images from
+    save: bool
+        whether to save the images to files. defaults to False
+    savepath: str
+        the directory to save the images to. defaults to the current directory
+
+    returns
+    -------
+    list[PIL.Image.Image]
+        list of pillow images
+
+    """
     images: list[GLTF_Image] = gltf.model.images or []
     return [
-        gltf_image_to_pillow(gltf, image, i, save)
+        gltf_image_to_pillow(gltf, image, save, f"{savepath}/image_{i}")
         for i, image in enumerate(images)
     ]
 
 
-def main(path: str, save: bool = False):
+def main(file: str, save: bool = False, savepath: str = ".") -> None:
     """extract textures from a gltf file"""
-    gltf: GLTF = GLTF.load(path)
-    glb_to_pillow(gltf, save)
+    gltf: GLTF = GLTF.load(file)
+    glb_to_pillow(gltf, save, savepath)
 
 
 if __name__ == "__main__":
@@ -92,5 +172,6 @@ if __name__ == "__main__":
         help="path to gltf file",
     )
     parser.add_argument("-s", "--save", action="store_true")
+    parser.add_argument("-p", "--path", type=str, default=".")
     args: argparse.Namespace = parser.parse_args()
-    main(args.file, args.save)
+    main(args.file, args.save, args.path)

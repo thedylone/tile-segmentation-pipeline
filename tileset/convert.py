@@ -7,8 +7,17 @@ from py3dtiles.tileset.tileset import (
 )
 
 
-def convert_tileset(tileset: TileSet, labels: dict) -> None:
-    """convert tileset to 1.1 with groups and schema"""
+def convert_tileset(tileset: TileSet, labels: dict[int, str]) -> None:
+    """converts a tileset to version 1.1 and adds groups and schema
+
+    parameters
+    ----------
+    tileset: TileSet
+        tileset to convert
+    labels: dict[int, str]
+        dictionary of labels to add to groups and schema
+
+    """
     tileset.asset.version = "1.1"
     tileset.groups = [
         MetadataEntity(re.sub(r"[^a-zA-Z0-9_]", "_", label))

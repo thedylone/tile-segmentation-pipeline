@@ -33,14 +33,46 @@ from trimesh.visual import TextureVisuals
 
 @dataclass
 class MeshData:
-    """MeshData"""
+    """dataclass storing mesh data
+
+    parameters
+    ----------
+    points: np.ndarray
+        array containing the x, y, and z coordinates of each point
+    faces: np.ndarray
+        array containing the vertex indices of each face
+    tex_coord: np.ndarray
+        array containing the u and v coordinates of each texture coordinate
+
+    attributes
+    ----------
+    points: np.ndarray
+        array containing the x, y, and z coordinates of each point
+    faces: np.ndarray
+        array containing the vertex indices of each face
+    tex_coord: np.ndarray
+        array containing the u and v coordinates of each texture coordinate
+
+    """
 
     points: np.ndarray
+    """array containing the x, y, and z coordinates of each point"""
+
     faces: np.ndarray
+    """array containing the vertex indices of each face"""
+
     tex_coord: np.ndarray
+    """array containing the u and v coordinates of each texture coordinate"""
 
     def all(self) -> bool:
-        """returns true if all data is present"""
+        """checks if all data is present
+
+        returns
+        -------
+        bool
+            True if all data is present, False otherwise
+
+        """
         return all(
             [
                 self.points.size > 0,
@@ -50,7 +82,14 @@ class MeshData:
         )
 
     def to_trimesh(self) -> Trimesh:
-        """returns trimesh"""
+        """converts to a trimesh object
+
+        returns
+        -------
+        trimesh.Trimesh
+            trimesh representation of the mesh
+
+        """
         return Trimesh(
             vertices=self.points,
             faces=self.faces,
@@ -59,19 +98,78 @@ class MeshData:
 
 
 class SubPrimitiveSeg:
-    """SubPrimitiveSeg"""
+    """a subset of a primitive
+
+    class attributes `points` and `tex_coord` are used to store the data of the
+    parent primitive.
+
+    attributes
+    ----------
+    vertices: list[np.ndarray]
+        list of coordinates of each vertex
+    faces: list[np.ndarray]
+        list of vertex indices of each face in the subprimitive
+    uv_coords: list[np.ndarray]
+        list of texture coordinates of each vertex
+    vertex_map: dict[int, int]
+        dictionary mapping parent vertex indices to subprimitive vertex indices
+
+    examples
+    --------
+    >>> SubPrimitiveSeg.points = np.array([
+        [0, 0, 0], [0, 0, 1], [0, 1, 0], [0, 1, 1], [1, 0, 0]
+        ])
+    >>> SubPrimitiveSeg.tex_coord = np.array([
+        [0, 0], [1, 0], [0, 1], [1, 1], [0.5, 0.5]
+        ])
+    >>> subprimitive = SubPrimitiveSeg()
+    >>> subprimitive.add_face(np.array([0, 2, 4]))
+    >>> subprimitive.to_dict()
+    {
+        "vertices": np.array([
+            [0, 0, 0], [0, 1, 0], [1, 0, 0]
+            ]),
+        "faces": np.array([
+            [0, 1, 2]
+            ]),
+        "uv_coords": np.array([
+            [0, 0], [0, 1], [0.5, 0.5]
+            ])
+    }
+
+    """
 
     points: np.ndarray
+    """points of the parent primitive"""
+
     tex_coord: np.ndarray
+    """texture coordinates of the parent primitive"""
 
     def __init__(self) -> None:
         self.vertices: list[np.ndarray] = []
+        """list of coordinates of each vertex"""
+
         self.faces: list[np.ndarray] = []
+        """list of vertex indices of each face in the subprimitive"""
+
         self.uv_coords: list[np.ndarray] = []
+        """list of texture coordinates of each vertex"""
+
         self.vertex_map: dict[int, int] = {}
+        """dictionary mapping parent vertex indices to subprimitive vertex"""
 
     def add_face(self, face: np.ndarray) -> None:
-        """adds face"""
+        """adds a face from the parent primitive to the subprimitive
+
+        appends vertices, faces, and texture coordinates with updated
+        vertex indices for the subprimitive
+
+        parameters
+        ----------
+        face: np.ndarray
+            face from the parent primitive containing vertex indices
+
+        """
         new_face: list[int] = []
         for vertex in face:
             if vertex not in self.vertex_map:
@@ -82,7 +180,16 @@ class SubPrimitiveSeg:
         self.faces.append(np.array(new_face))
 
     def to_dict(self) -> dict[str, np.ndarray]:
-        """returns dict"""
+        """converts to a dictionary containing numpy arrays of vertices, faces,
+        and texture coordinates
+
+        returns
+        -------
+        dict[str, np.ndarray]
+            dictionary containing numpy arrays of vertices, faces, and texture
+            coordinates
+
+        """
         return {
             "vertices": np.array(self.vertices),
             "faces": np.array(self.faces),
@@ -90,7 +197,14 @@ class SubPrimitiveSeg:
         }
 
     def to_mesh_data(self) -> MeshData:
-        """returns mesh data"""
+        """converts to a MeshData object
+
+        returns
+        -------
+        MeshData
+            MeshData object containing vertices, faces, and texture coordinates
+
+        """
         return MeshData(
             points=np.array(self.vertices),
             faces=np.array(self.faces),
@@ -98,7 +212,14 @@ class SubPrimitiveSeg:
         )
 
     def to_trimesh(self) -> Trimesh:
-        """returns trimesh"""
+        """converts to a trimesh object
+
+        returns
+        -------
+        trimesh.Trimesh
+            trimesh object containing vertices, faces, and texture coordinates
+
+        """
         return Trimesh(
             vertices=np.array(self.vertices),
             faces=np.array(self.faces),
@@ -107,20 +228,69 @@ class SubPrimitiveSeg:
 
 
 class BufferAccessor:
-    """BufferAccessor"""
+    """accesses buffer data contained in a glb
+
+    attributes
+    ----------
+    glb: gltflib.GLTF
+        the glTF object to access
+
+    examples
+    --------
+    >>> BufferAccessor.glb = GLTF.load("model.glb")
+    >>> BufferAccessor.get_accessor(0)
+    Accessor(...)
+    >>> BufferAccessor.retrieve_bufferview(0)
+    b"..."
+    >>> BufferAccessor.access_buffer(0)
+    b"..."
+
+    """
 
     glb: GLTF
+    """the glTF object to access"""
 
     def get_accessor(
         self, accessor_index: Optional[int]
     ) -> Optional[Accessor]:
-        """returns accessor"""
+        """retrieve the accessor by accessor index
+
+        parameters
+        ----------
+        accessor_index: int or None
+            index of the accessor
+
+        returns
+        -------
+        gltflib.Accessor or None
+            accessor in the glTF if found, None otherwise
+
+        """
         if accessor_index is None:
             return None
         return self._get_accessor(accessor_index)
 
     def _get_accessor(self, accessor_index: int) -> Accessor:
-        """returns accessor"""
+        """retrieve the accessor by accessor index
+
+        parameters
+        ----------
+        accessor_index: int
+            index of the accessor
+
+        returns
+        -------
+        Accessor
+            accessor in the glTF
+
+        raises
+        ------
+        ValueError
+            if no accessors are found
+        ValueError
+            if accessor index is out of range
+
+        """
         accessors: Optional[list[Accessor]] = self.glb.model.accessors
         if accessors is None:
             raise ValueError("No accessors found")
@@ -129,7 +299,19 @@ class BufferAccessor:
         return accessors[accessor_index]
 
     def get_buffer_data(self, buffer: Buffer) -> bytes:
-        """get the data from a buffer"""
+        """retrieve the data from a buffer
+
+        parameters
+        ----------
+        buffer: gltflib.Buffer
+            buffer to retrieve data from
+
+        returns
+        -------
+        bytes
+            data of the buffer
+
+        """
         resource: Union[GLBResource, GLTFResource] = (
             self.glb.get_glb_resource()
             if buffer.uri is None
@@ -140,7 +322,19 @@ class BufferAccessor:
         return resource.data
 
     def retrieve_bufferview(self, buffer_view_index: int) -> bytes:
-        """returns buffer data"""
+        """retrieve the data from a buffer referenced from a buffer view by
+        index of the buffer view in the glTF
+
+        parameters
+        ----------
+        buffer_view_index: int
+            index of the buffer view in the glTF
+
+        returns
+        -------
+        bytes
+            data of the buffer referenced from the buffer view
+        """
         buffer_views: Optional[list[BufferView]] = self.glb.model.bufferViews
         if buffer_views is None:
             raise ValueError("No buffer views found")
@@ -157,7 +351,20 @@ class BufferAccessor:
         return data[start:end]
 
     def access_buffer(self, accessor_index: Optional[int]) -> bytes:
-        """returns buffer data"""
+        """retrieve the data from a buffer referenced from an accessor by
+        index of the accessor in the glTF
+
+        parameters
+        ----------
+        accessor_index: int or None
+            index of the accessor in the glTF
+
+        returns
+        -------
+        bytes
+            data of the buffer referenced from the accessor
+
+        """
         if accessor_index is None:
             return b""
         accessor: Accessor = self._get_accessor(accessor_index)
@@ -167,79 +374,214 @@ class BufferAccessor:
 
 
 class _Attributes(BufferAccessor):
-    """Attributes of a primitive, containing accessors to the data"""
+    """Attributes of a primitive, containing accessors to the data
+
+    attributes
+    ----------
+    attributes: gltflib.Attributes
+        the raw attributes object containing the accessor indices
+    position: gltflib.Accessor or None
+        accessor to the position data
+    normal: gltflib.Accessor or None
+        accessor to the normal data
+    tangent: gltflib.Accessor or None
+        accessor to the tangent data
+    texcoord_0: gltflib.Accessor or None
+        accessor to the texture coordinate 0 data
+    texcoord_1: gltflib.Accessor or None
+        accessor to the texture coordinate 1 data
+    color_0: gltflib.Accessor or None
+        accessor to the color data
+    joints_0: gltflib.Accessor or None
+        accessor to the joint data
+    weights_0: gltflib.Accessor or None
+        accessor to the weight data
+
+    """
 
     def __init__(self, attributes: Attributes) -> None:
         self.attributes: Attributes = attributes
+        """the raw attributes object containing the accessor indices"""
 
     @property
     def position(self) -> Optional[Accessor]:
-        """returns position"""
+        """retrieve the position data accessor
+
+        returns
+        -------
+        gltflib.Accessor or None
+            accessor to the position data if found, None otherwise
+
+        """
         return self.get_accessor(self.attributes.POSITION)
 
     @property
     def normal(self) -> Optional[Accessor]:
-        """returns normal"""
+        """retrieve the normal data accessor
+
+        returns
+        -------
+        gltflib.Accessor or None
+            accessor to the normal data if found, None otherwise
+        """
         return self.get_accessor(self.attributes.NORMAL)
 
     @property
     def tangent(self) -> Optional[Accessor]:
-        """returns tangent"""
+        """retrieve the tangent data accessor
+
+        returns
+        -------
+        gltflib.Accessor or None
+            accessor to the tangent data if found, None otherwise
+        """
         return self.get_accessor(self.attributes.TANGENT)
 
     @property
     def texcoord_0(self) -> Optional[Accessor]:
-        """returns texcoord_0"""
+        """retrieve the texture coordinate 0 data accessor
+
+        returns
+        -------
+        gltflib.Accessor or None
+            accessor to the texture coordinate 0 data if found, None otherwise
+
+        """
         return self.get_accessor(self.attributes.TEXCOORD_0)
 
     @property
     def texcoord_1(self) -> Optional[Accessor]:
-        """returns texcoord_1"""
+        """retrieve the texture coordinate 1 data accessor
+
+        returns
+        -------
+        gltflib.Accessor or None
+            accessor to the texture coordinate 1 data if found, None otherwise
+        """
         return self.get_accessor(self.attributes.TEXCOORD_1)
 
     @property
     def color_0(self) -> Optional[Accessor]:
-        """returns color_0"""
+        """retrieve the color data accessor
+
+        returns
+        -------
+        gltflib.Accessor or None
+            accessor to the color data if found, None otherwise
+
+        """
         return self.get_accessor(self.attributes.COLOR_0)
 
     @property
     def joints_0(self) -> Optional[Accessor]:
-        """returns joints_0"""
+        """retrieve the joints data accessor
+
+        returns
+        -------
+        gltflib.Accessor or None
+            accessor to the joint data if found, None otherwise
+
+        """
         return self.get_accessor(self.attributes.JOINTS_0)
 
     @property
     def weights_0(self) -> Optional[Accessor]:
-        """returns weights_0"""
+        """retrieve the weights data accessor
+
+        returns
+        -------
+        gltflib.Accessor or None
+            accessor to the weight data if found, None otherwise
+
+        """
         return self.get_accessor(self.attributes.WEIGHTS_0)
 
 
 class PrimitiveSeg(BufferAccessor):
-    """PrimitiveSeg"""
+    """loads a primitive and sorts vertices by class. exports submeshes
+    by class into separate glb files
+
+    parameters
+    ----------
+    primitive: gltflib.Primitive
+        primitive to load and segment
+
+    attributes
+    ----------
+    primitive: gltflib.Primitive
+        primitive to load and segment
+    attributes: _Attributes
+        attributes of the primitive containing accessors to the data
+    indices: gltflib.Accessor or None
+        accessor to the indices data
+    data: MeshData
+        data of the primitive containing vertices, faces,
+        and texture coordinates
+    vertices_to_class: list[int]
+        list of classes for each vertex
+    subprimitives: dict[int, SubPrimitiveSeg]
+        dictionary of subprimitives sorted by class
+    material: gltflib.Material or None
+        material of the primitive
+
+    examples
+    --------
+    >>> primitive_seg = PrimitiveSeg(primitive)
+    >>> primitive_seg.vertices_to_class = list_of_classes
+    >>> primitive_seg.export_subprimitives(Path("output"))
+
+    """
 
     def __init__(self, primitive: Primitive) -> None:
         self.primitive: Primitive = primitive
+        """primitive to load and segment"""
+
         self.attributes: _Attributes = _Attributes(primitive.attributes)
+        """attributes of the primitive containing accessors to the data"""
+
         self.indices: Optional[Accessor] = self.get_accessor(primitive.indices)
+        """accessor to the indices data"""
+
         self.data: MeshData = self._get_data()
+        """data of the primitive containing vertices, faces, and texture
+        coordinates"""
+
         self.vertices_to_class: list[int] = [-1] * self.data.points.shape[0]
+        """list of classes for each vertex"""
+
         self._subprimitives: dict[int, SubPrimitiveSeg]
         self._material: Optional[Material]
 
     @property
     def subprimitives(self) -> dict[int, SubPrimitiveSeg]:
-        """returns submeshes"""
+        """dictionary of subprimitives sorted by class
+
+        subprimitives are only generated once when this property is accessed
+
+        returns
+        -------
+        dict[int, SubPrimitiveSeg]
+            dictionary of subprimitives by class
+
+        """
         if not hasattr(self, "_subprimitives") or self._subprimitives is None:
-            self._subprimitives = self._get_subprimitives()
+            self.load_subprimitives()
         return self._subprimitives
 
     @subprimitives.setter
     def subprimitives(self, subprimitives: dict[int, SubPrimitiveSeg]) -> None:
-        """sets submeshes"""
         self._subprimitives = subprimitives
 
     @property
     def material(self) -> Optional[Material]:
-        """returns material"""
+        """material of the primitive if found
+
+        returns
+        -------
+        gltflib.Material or None
+            material of the primitive if found, None otherwise
+
+        """
         if not hasattr(self, "_material"):
             self._material = self.get_material(self.primitive.material)
         return self._material
@@ -247,7 +589,19 @@ class PrimitiveSeg(BufferAccessor):
     def get_material(
         self, material_index: Optional[int]
     ) -> Optional[Material]:
-        """sets material"""
+        """retrieve the material in the glTF by index
+
+        parameters
+        ----------
+        material_index: int or None
+            index of the material in the glTF
+
+        returns
+        -------
+        gltflib.Material or None
+            material in the glTF if found, None otherwise
+
+        """
         if material_index is None:
             return None
         materials: Optional[list[Material]] = self.glb.model.materials
@@ -258,7 +612,17 @@ class PrimitiveSeg(BufferAccessor):
         return materials[material_index]
 
     def get_texture_image_bytes(self) -> Optional[bytes]:
-        """returns texture image bytes"""
+        """retrieve the bytes data of the texture image from self.material
+
+        self.material should be set before calling this method. uses
+        pbrMetallicRoughness.baseColorTexture.index to retrieve the texture
+
+        returns
+        -------
+        bytes or None
+            bytes data of the texture image if found, None otherwise
+
+        """
         if (
             self.material is None
             or self.material.pbrMetallicRoughness is None
@@ -284,13 +648,37 @@ class PrimitiveSeg(BufferAccessor):
         return self.retrieve_bufferview(image.bufferView)
 
     def get_texture_image(self) -> Optional[PIL_Image.Image]:
-        """returns texture image"""
+        """retrieve the texture image from self.material
+
+        self.material should be set before calling this method. uses
+        pbrMetallicRoughness.baseColorTexture.index to retrieve the texture
+
+        returns
+        -------
+        PIL.Image.Image or None
+            texture image if found, None otherwise
+
+        """
         data: Optional[bytes] = self.get_texture_image_bytes()
         if data is None:
             return None
         return PIL_Image.open(io.BytesIO(data))
 
     def _get_data(self) -> MeshData:
+        """attempts to retrieve data from attributes accessors and Draco
+        compression
+
+        tries to retrieve data from attributes accessors first. if no data is
+        found, tries to retrieve data from Draco compression. if no data is
+        found, raises ValueError
+
+        returns
+        -------
+        MeshData
+            data of the primitive containing vertices, faces,
+            and texture coordinates
+
+        """
         data: MeshData = self.retrieve_data()
         if data.all():
             return data
@@ -300,7 +688,18 @@ class PrimitiveSeg(BufferAccessor):
         raise ValueError("No data found")
 
     def retrieve_data(self) -> MeshData:
-        """retrieves data from attributes accessors"""
+        """retrieves data from attributes accessors and indices accessor
+
+        tries to retrieve data from accessors. if no data is found, returns
+        empty arrays for points, faces, and texture coordinates in MeshData
+
+        returns
+        -------
+        MeshData
+            data of the primitive containing vertices, faces,
+            and texture coordinates
+
+        """
         points: np.ndarray = np.array([])  # vec3 float
         faces: np.ndarray = np.array([])  # vec3 int
         tex: np.ndarray = np.array([])  # vec2 float
@@ -320,7 +719,16 @@ class PrimitiveSeg(BufferAccessor):
         return MeshData(points, faces, tex)
 
     def try_finding_data(self):
-        """tries to match decoded buffer data with accessor counts"""
+        """tries to find data from Draco decompression and matches the data
+        with the counts of each property from the accessors
+
+        returns
+        -------
+        MeshData or None
+            data of the primitive containing vertices, faces,
+            and texture coordinates if found, None otherwise
+
+        """
         if self.glb.model.bufferViews is None:
             return None
         if (
@@ -351,8 +759,28 @@ class PrimitiveSeg(BufferAccessor):
             return decoded
         return None
 
+    def load_subprimitives(self) -> None:
+        """loads subprimitives and saves them to the _subprimitives attribute
+
+        if vertices_to_class is changed, this method must be called again to
+        update the subprimitives
+
+        """
+        self._subprimitives = self._get_subprimitives()
+
     def _get_subprimitives(self) -> dict[int, SubPrimitiveSeg]:
-        """returns subprimitives"""
+        """returns a dictionary of subprimitives sorted by class
+
+        avoid calling this method directly. use the subprimitves property
+        instead to save the subprimitves to the subprimitves attribute, or use
+        the _load_subprimitves method to update the subprimitves
+
+        returns
+        -------
+        dict[int, SubPrimitiveSeg]
+            dictionary of subprimitives by class
+
+        """
         if self.data is None:
             raise ValueError("No data found")
         if (
@@ -375,8 +803,19 @@ class PrimitiveSeg(BufferAccessor):
                 submeshes[class_id].add_face(face)
         return submeshes
 
-    def export_subprimitives(self, output_dir: Path) -> None:
-        """exports separate subprimitives by class"""
+    def export_subprimitives(self, path: Path) -> None:
+        """exports subprimitives by class to the given path
+
+        exported subprimitives are saved as glb files with the following naming
+        convention: {`path`}/class_{`class_id`}.glb
+
+        parameters
+        ----------
+        path: pathlib.Path
+            path to export subprimitives to
+
+        """
+        Path.mkdir(path.parent, parents=True, exist_ok=True)
         for class_id, subprimitive in tqdm(
             self.subprimitives.items(), desc="Exporting", unit="subprimitive"
         ):
@@ -385,12 +824,24 @@ class PrimitiveSeg(BufferAccessor):
                 uv=np.array(subprimitive.uv_coords),
                 image=self.get_texture_image(),
             )
-            subtrimesh.export(f"{output_dir}_{class_id}.glb")
+            subtrimesh.export(f"{path}/class_{class_id}.glb")
 
     def export_subprimitive(
         self, subprimitive: SubPrimitiveSeg, path: Path
     ) -> None:
-        """exports separate subprimitives by class"""
+        """exports subprimitive to the given path
+
+        path should specify the entire path including the file name and
+        extension (e.g. "output/subprimitive.glb")
+
+        parameters
+        ----------
+        subprimitive: SubPrimitiveSeg
+            subprimitive to export
+        path: pathlib.Path
+            path to export subprimitive to
+
+        """
         subtrimesh: Trimesh = subprimitive.to_trimesh()
         subtrimesh.visual = TextureVisuals(
             uv=np.array(subprimitive.uv_coords),
@@ -401,14 +852,46 @@ class PrimitiveSeg(BufferAccessor):
 
 
 class GLBSegment(BufferAccessor):
-    """GLBSegment"""
+    """loads a glb and loads primitives of each mesh. exports a glb with
+    metadata from each PrimitiveSeg
+
+    class attribute `glb` is used to store the glTF object to access
+
+    parameters
+    ----------
+    path: pathlib.Path
+        path to glb file
+
+    attributes
+    ----------
+    glb: gltflib.GLTF
+        the glTF object to access and segment
+    meshes: list[list[PrimitiveSeg]]
+        list of meshes containing lists of primitives
+
+    examples
+    --------
+    >>> glb = GLBSegment(Path("model.glb"))
+    >>> glb.load_meshes()
+    >>> glb.export(Path("output/model.glb"))
+    >>> glb.export_submeshes(Path("output"))
+
+    """
 
     def __init__(self, path: Path) -> None:
         BufferAccessor.glb = GLTF.load(str(path))
         self.meshes: list[list[PrimitiveSeg]] = []
+        """list of meshes containing lists of primitives"""
 
     def load_meshes(self) -> None:
-        """loads meshes"""
+        """loads meshes and primitives from the glb and saves the loaded
+        PrimitiveSegs to the meshes attribute
+
+        running this method twice will result in duplicate PrimitiveSegs in the
+        meshes attribute, so set the meshes attribute to an empty list before
+        calling this method again
+
+        """
         if self.glb.model.meshes is None:
             return
         for mesh in tqdm(
@@ -428,7 +911,18 @@ class GLBSegment(BufferAccessor):
             self.meshes.append(primitives)
 
     def export(self, path: Path) -> None:
-        """exports glb with metadata"""
+        """exports the glb with metadata from each PrimitiveSeg to the given
+        path
+
+        the path should specify the entire path including the file name and
+        extension (e.g. "output/model.glb")
+
+        parameters
+        ----------
+        path: pathlib.Path
+            path to export the glb to
+
+        """
         if self.glb.model.meshes is None:
             return
         if self.glb.model.buffers is None:
@@ -494,7 +988,17 @@ class GLBSegment(BufferAccessor):
         self.glb.export(str(path))
 
     def export_submeshes(self, output_dir: Path) -> None:
-        """exports submeshes by class"""
+        """exports submeshes by class to the given path
+
+        exported submeshes are saved as glb files with the following naming
+        convention: {`output_dir`}/mesh_{`mesh_index`}/class_{`class_id`}.glb
+
+        parameters
+        ----------
+        output_dir: pathlib.Path
+            path to export submeshes to
+
+        """
         for i, mesh in enumerate(self.meshes):
             for primitive_seg in tqdm(
                 mesh,
