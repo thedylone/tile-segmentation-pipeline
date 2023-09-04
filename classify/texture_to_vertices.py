@@ -30,8 +30,8 @@ def get_map_value(seg: np.ndarray, coords: tuple[float, float]) -> int:
     height: int
     width: int
     height, width = seg.shape
-    col: int = int(coords[0] * (width - 1))
-    row: int = int(coords[1] * (height - 1))
+    col: int = int(coords[0] * (width - 1)) % width
+    row: int = int(coords[1] * (height - 1)) % height
     return seg[row][col].item()
 
 

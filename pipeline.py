@@ -312,9 +312,9 @@ class PipelineSeparate(Pipeline):
             return
         LOG.info("Rewriting tile")
         for i, mesh in enumerate(glb.meshes):
-            for primitive in mesh:
+            for j, primitive in enumerate(mesh):
                 for class_id, subprimitive in primitive.subprimitives.items():
-                    _uri: str = f"glb{count}/mesh{i}_{class_id}.glb"
+                    _uri: str = f"glb{count}/mesh{i}_{j}_{class_id}.glb"
                     primitive.export_subprimitive(
                         subprimitive, cls.OUTPUT_DIR / _uri
                     )

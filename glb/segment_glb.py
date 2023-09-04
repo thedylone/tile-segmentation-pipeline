@@ -23,12 +23,11 @@ from gltflib import (
     Image,
     Texture,
 )
+from gltflib import GLTFModel, Asset, Mesh
 from gltflib.gltf import GLTF
 from gltflib.gltf_resource import GLTFResource, GLBResource, FileResource
 from PIL import Image as PIL_Image
 from tqdm import tqdm
-from trimesh import Trimesh
-from trimesh.visual import TextureVisuals
 
 
 @dataclass
@@ -79,21 +78,6 @@ class MeshData:
                 self.faces.size > 0,
                 self.tex_coord.size > 0,
             ]
-        )
-
-    def to_trimesh(self) -> Trimesh:
-        """converts to a trimesh object
-
-        returns
-        -------
-        trimesh.Trimesh
-            trimesh representation of the mesh
-
-        """
-        return Trimesh(
-            vertices=self.points,
-            faces=self.faces,
-            texture_coords=self.tex_coord,
         )
 
 
@@ -209,21 +193,6 @@ class SubPrimitiveSeg:
             points=np.array(self.vertices),
             faces=np.array(self.faces),
             tex_coord=np.array(self.uv_coords),
-        )
-
-    def to_trimesh(self) -> Trimesh:
-        """converts to a trimesh object
-
-        returns
-        -------
-        trimesh.Trimesh
-            trimesh object containing vertices, faces, and texture coordinates
-
-        """
-        return Trimesh(
-            vertices=np.array(self.vertices),
-            faces=np.array(self.faces),
-            texture_coords=np.array(self.uv_coords),
         )
 
 
@@ -815,16 +784,13 @@ class PrimitiveSeg(BufferAccessor):
             path to export subprimitives to
 
         """
-        Path.mkdir(path.parent, parents=True, exist_ok=True)
+        Path.mkdir(path, parents=True, exist_ok=True)
         for class_id, subprimitive in tqdm(
             self.subprimitives.items(), desc="Exporting", unit="subprimitive"
         ):
-            subtrimesh: Trimesh = subprimitive.to_trimesh()
-            subtrimesh.visual = TextureVisuals(
-                uv=np.array(subprimitive.uv_coords),
-                image=self.get_texture_image(),
+            self.export_subprimitive(
+                subprimitive, path / f"class_{class_id}.glb"
             )
-            subtrimesh.export(f"{path}/class_{class_id}.glb")
 
     def export_subprimitive(
         self, subprimitive: SubPrimitiveSeg, path: Path
@@ -842,13 +808,142 @@ class PrimitiveSeg(BufferAccessor):
             path to export subprimitive to
 
         """
-        subtrimesh: Trimesh = subprimitive.to_trimesh()
-        subtrimesh.visual = TextureVisuals(
-            uv=np.array(subprimitive.uv_coords),
-            image=self.get_texture_image(),
+        vertex_bytearray = bytearray()
+        vertex_max: list[float] = [float("-inf")] * 3
+        vertex_min: list[float] = [float("inf")] * 3
+        face_bytearray = bytearray()
+        tex_coord_bytearray = bytearray()
+        # image_bytearray: bytes = self.get_texture_image_bytes() or b""
+        for vertex in subprimitive.vertices:
+            for i, value in enumerate(vertex):
+                vertex_bytearray.extend(struct.pack("f", value))
+                vertex_max[i] = max(vertex_max[i], value)
+                vertex_min[i] = min(vertex_min[i], value)
+        for face in subprimitive.faces:
+            for value in face:
+                face_bytearray.extend(struct.pack("H", value))
+        for tex_coord in subprimitive.uv_coords:
+            for value in tex_coord:
+                tex_coord_bytearray.extend(struct.pack("f", value))
+        vertex_bytelen: int = len(vertex_bytearray)
+        face_bytelen: int = len(face_bytearray)
+        tex_coord_bytelen: int = len(tex_coord_bytearray)
+        # image_bytelen: int = len(image_bytearray) if image_bytearray else 0
+        model = GLTFModel(
+            accessors=[
+                # position
+                Accessor(
+                    bufferView=0,
+                    byteOffset=0,
+                    componentType=ComponentType.FLOAT.value,
+                    count=len(subprimitive.vertices),
+                    type=AccessorType.VEC3.value,
+                    max=vertex_max,
+                    min=vertex_min,
+                ),
+                # faces
+                Accessor(
+                    bufferView=1,
+                    byteOffset=0,
+                    componentType=ComponentType.UNSIGNED_SHORT.value,
+                    count=len(subprimitive.faces),
+                    type=AccessorType.SCALAR.value,
+                ),
+                # tex coords
+                Accessor(
+                    bufferView=2,
+                    byteOffset=0,
+                    componentType=ComponentType.FLOAT.value,
+                    count=len(subprimitive.uv_coords),
+                    type=AccessorType.VEC2.value,
+                ),
+            ],
+            asset=Asset(version="2.0"),
+            extensionsUsed=self.glb.model.extensionsUsed,
+            scenes=self.glb.model.scenes,
+            nodes=self.glb.model.nodes,
+            meshes=[
+                Mesh(
+                    primitives=[
+                        Primitive(
+                            attributes=Attributes(POSITION=0, TEXCOORD_0=2),
+                            indices=1,
+                            material=0,
+                        )
+                    ]
+                )
+            ],
+            bufferViews=[
+                BufferView(
+                    buffer=0,
+                    byteOffset=0,
+                    byteLength=vertex_bytelen,
+                    target=BufferTarget.ARRAY_BUFFER.value,
+                ),
+                BufferView(
+                    buffer=0,
+                    byteOffset=vertex_bytelen,
+                    byteLength=face_bytelen,
+                    target=BufferTarget.ELEMENT_ARRAY_BUFFER.value,
+                ),
+                BufferView(
+                    buffer=0,
+                    byteOffset=vertex_bytelen + face_bytelen,
+                    byteLength=tex_coord_bytelen,
+                    target=BufferTarget.ARRAY_BUFFER.value,
+                ),
+            ],
+            materials=[self.material] if self.material else None,
+            samplers=self.glb.model.samplers,
+            textures=self.glb.model.textures,
         )
-        Path.mkdir(path.parent, parents=True, exist_ok=True)
-        subtrimesh.export(path)
+        image_bytearray: bytes = bytearray()
+        for image in self.glb.model.images or []:
+            bufferview: Optional[int] = image.bufferView
+            if bufferview is None:
+                continue
+            image_bytes = self.retrieve_bufferview(bufferview)
+            if model.images is None:
+                model.images = []
+            model.images.append(
+                Image(
+                    mimeType=image.mimeType,
+                    bufferView=len(model.bufferViews or []),
+                )
+            )
+            if model.bufferViews is None:
+                model.bufferViews = []
+            model.bufferViews.append(
+                BufferView(
+                    buffer=0,
+                    byteOffset=vertex_bytelen
+                    + face_bytelen
+                    + tex_coord_bytelen
+                    + len(image_bytearray),
+                    byteLength=len(image_bytes),
+                )
+            )
+            image_bytearray.extend(image_bytes)
+
+        model.buffers = [
+            Buffer(
+                byteLength=vertex_bytelen
+                + face_bytelen
+                + tex_coord_bytelen
+                + len(image_bytearray),
+                uri="submesh.bin",
+            )
+        ]
+
+        resource = FileResource(
+            "submesh.bin",
+            data=vertex_bytearray
+            + face_bytearray
+            + tex_coord_bytearray
+            + image_bytearray,
+        )
+
+        GLTF(model=model, resources=[resource]).export(str(path))
 
 
 class GLBSegment(BufferAccessor):
@@ -1000,13 +1095,15 @@ class GLBSegment(BufferAccessor):
 
         """
         for i, mesh in enumerate(self.meshes):
-            for primitive_seg in tqdm(
-                mesh,
-                desc="Exporting mesh",
-                unit="mesh",
-                leave=False,
+            for j, primitive_seg in enumerate(
+                tqdm(
+                    mesh,
+                    desc="Exporting mesh",
+                    unit="mesh",
+                    leave=False,
+                )
             ):
-                primitive_seg.export_subprimitives(output_dir / f"mesh_{i}")
+                primitive_seg.export_subprimitives(output_dir / f"mesh{i}/{j}")
 
 
 def main(glb_path: Path, output_dir: Path, submeshes: bool) -> None:
