@@ -846,7 +846,7 @@ class PrimitiveSeg(BufferAccessor):
                     bufferView=1,
                     byteOffset=0,
                     componentType=ComponentType.UNSIGNED_SHORT.value,
-                    count=len(subprimitive.faces),
+                    count=len(subprimitive.faces) * 3,
                     type=AccessorType.SCALAR.value,
                 ),
                 # tex coords
