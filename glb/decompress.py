@@ -595,7 +595,7 @@ class GLBDecompress(BufferAccessor):
     ----------
     glb: gltflib.GLTF
         the glTF object to access and decompress
-    meshes: list[list[PrimitiveSeg]]
+    meshes: list[list[PrimitiveDecompress]]
         list of meshes containing lists of primitives
 
     examples

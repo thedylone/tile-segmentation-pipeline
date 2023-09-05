@@ -7,12 +7,23 @@ from .extract_textures import glb_to_pillow
 
 from .get_vertices import MeshSegment
 
-from .segment_glb import GLBSegment, PrimitiveSeg
+from .decompress import (
+    GLBDecompress,
+    PrimitiveDecompress,
+    MeshData,
+    BufferAccessor,
+)
+
+from .segment import GLBSegment, PrimitiveSegment
 
 
 __all__: list[str] = [
     "glb_to_pillow",
     "MeshSegment",
     "GLBSegment",
-    "PrimitiveSeg",
+    "PrimitiveSegment",
+    "GLBDecompress",
+    "PrimitiveDecompress",
+    "MeshData",
+    "BufferAccessor",
 ]
