@@ -360,7 +360,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "-s",
-        "--separate",
+        "--submeshes",
         action="store_true",
         help="export by splitting glb files",
     )
@@ -378,7 +378,7 @@ if __name__ == "__main__":
     if args.verbose:
         logging.basicConfig(level=logging.INFO)
     with logging_redirect_tqdm():
-        if args.separate:
+        if args.submeshes:
             PipelineSeparate.pipeline(Path(args.filename))
         else:
             Pipeline.pipeline(Path(args.filename))

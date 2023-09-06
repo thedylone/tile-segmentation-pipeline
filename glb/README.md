@@ -13,6 +13,8 @@ As aforementioned, the following dependencies should be installed:
 -   [gltflib](https://github.com/lukas-shawford/gltflib)
 -   [trimesh](https://github.com/mikedh/trimesh)
 -   [DracoPy](https://github.com/seung-lab/DracoPy)
+-   Pillow
+-   numpy
 
 ## Usage
 
