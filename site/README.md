@@ -11,7 +11,7 @@ npm run dev      # local dev server
 npm run build    # production build in site/dist
 ```
 
-`.github/workflows/pages.yml` builds and deploys the page on pushes to `dylan` (the default branch)
+`.github/workflows/pages.yml` builds and deploys the page on pushes to `main`
 that change `site/`. It can also be run by hand. In the repository settings, set **Pages → Source** to
 **GitHub Actions**.
 
