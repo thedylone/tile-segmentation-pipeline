@@ -11,24 +11,18 @@ npm run dev      # local dev server
 npm run build    # production build in site/dist
 ```
 
-`.github/workflows/pages.yml` builds and deploys the page on pushes to `main` that change `site/`.
-It can also be run by hand. In the repository settings, set **Pages → Source** to **GitHub Actions**.
+`.github/workflows/pages.yml` builds and deploys the page on pushes to `dylan` (the default branch)
+that change `site/`. It can also be run by hand. In the repository settings, set **Pages → Source** to
+**GitHub Actions**.
 
-## Point cloud data
+## 3D viewer
 
-The viewer loads `public/data/segmented_cloud.json`:
+The hero viewer renders a **synthetic placeholder scene** generated in `src/scene.ts`: a procedural
+city block made of polygons, each labelled with a Cityscapes class ID. The page labels it as a
+placeholder. It is not pipeline output. The real results in the Results section are images from the
+Medium article, in `public/img/article/`.
 
-```jsonc
-{
-  "placeholder": true,             // shows the "Placeholder data" badge and note
-  "classes": [{ "id": 2, "name": "building", "color": "#e08a3c" }],
-  "positions": [x, y, z, ...],     // y-up, any units
-  "labels": [2, ...]               // one class id per point
-}
-```
-
-The current file is a **synthetic placeholder** made by `npm run make-placeholder`. It is not
-pipeline output. To show real results, replace the file with real output in the same schema and
-set `placeholder` to `false`.
+To show a real tile instead, replace `buildScene()` with per-class triangle data taken from a
+segmented `.glb` file (for example, the `class_{id}.glb` submeshes from `--submeshes`).
 
 `public/gallery-cover.webp` (960×600) is a screenshot of the top of the page for the projects gallery.

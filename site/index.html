@@ -43,7 +43,7 @@
           <p class="eyebrow">DSTA internship · 2023</p>
           <h1>Segmentation pipeline for <em>3D&nbsp;Tiles</em></h1>
           <p class="lede">
-            A proof of concept that labels every vertex of the glTF models inside a 3D Tileset. Instead of
+            A proof of concept that labels the polygons of the glTF models inside a 3D Tileset. Instead of
             segmenting geometry directly, it segments each model's 2D textures with a Transformer and maps
             those labels back onto the 3D mesh through its texture coordinates.
           </p>
@@ -63,15 +63,18 @@
 
         <figure class="viewer card" id="viewer">
           <div class="viewer-stage" id="stage">
-            <div class="viewer-status" id="viewer-status">Loading point cloud…</div>
+            <div class="viewer-status" id="viewer-status">Loading 3D scene…</div>
           </div>
           <div class="viewer-chrome">
-            <span class="placeholder-badge" id="placeholder-badge" hidden>Placeholder data</span>
+            <span class="placeholder-badge">Placeholder scene</span>
             <span class="viewer-hint">Drag to orbit · pinch or scroll to zoom</span>
           </div>
           <figcaption>
             <ul class="legend" id="legend" aria-label="Classes (tap to toggle)"></ul>
-            <p class="viewer-note" id="viewer-note"></p>
+            <p class="viewer-note">
+              A synthetic, procedurally generated block whose polygons are coloured by class, the way the
+              pipeline labels a tile's mesh. It is not pipeline output; see <a href="#results">real results</a> below.
+            </p>
           </figcaption>
         </figure>
       </section>
@@ -113,13 +116,13 @@
             <span class="step-no">05</span>
             <svg class="step-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M10 38L24 10l14 28z"/><circle cx="10" cy="38" r="3" class="accent-fill"/><circle cx="24" cy="10" r="3" class="accent-fill"/><circle cx="38" cy="38" r="3" class="accent-fill"/></svg>
             <h3>UV → polygon back-projection</h3>
-            <p>Each vertex's texture coordinate looks up its pixel in the mask, giving every vertex a class.</p>
+            <p>Each vertex's texture coordinate looks up its pixel in the mask; polygons take their vertices' class.</p>
           </li>
           <li class="step card">
             <span class="step-no">06</span>
             <svg class="step-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M24 6l16 9v18l-16 9-16-9V15z"/><path d="M8 15l16 9 16-9" /><path d="M24 24v18" class="accent"/></svg>
             <h3>Labelled 3D output</h3>
-            <p>Write the classes as glb metadata, or split meshes by class into a new tileset.</p>
+            <p>Write the classes as glb metadata, or split polygons by class into a new tileset.</p>
           </li>
         </ol>
 
@@ -138,6 +141,55 @@
             JSON that points to <code>.glb</code> files split by class.
           </figcaption>
         </figure>
+      </section>
+
+      <section class="wrap section" id="results">
+        <p class="label">Results</p>
+        <h2>Labelled polygons, not pixels</h2>
+        <p class="section-lede">
+          The output is the original mesh with every polygon assigned a class. These images are from the
+          <a href="https://medium.com/d-classified/segmentation-pipeline-for-3d-tiles-1303fcb5e6be">Medium article</a>.
+        </p>
+
+        <div class="results-grid">
+          <figure class="result card">
+            <div class="pair">
+              <img src="/img/article/texture-mask.webp" width="499" height="407" loading="lazy" decoding="async"
+                alt="A glTF texture atlas of rooftops and tree canopies, and beside it the same atlas overlaid with the predicted mask: building regions in orange, vegetation in purple." />
+            </div>
+            <figcaption>
+              <span class="label small">Step 4 · Texture and mask</span>
+              A texture atlas extracted from one <code>.glb</code> and the mask Mask2Former predicts for it.
+            </figcaption>
+          </figure>
+
+          <figure class="result card">
+            <div class="pair two">
+              <img src="/img/article/tile-textured.webp" width="483" height="487" loading="lazy" decoding="async"
+                alt="One textured tile: a tall residential block on the left and a mass of trees on the right." />
+              <img src="/img/article/tile-segmented.webp" width="470" height="440" loading="lazy" decoding="async"
+                alt="The same tile after segmentation: the block's polygons in gold as building, the tree polygons in purple as vegetation." />
+            </div>
+            <figcaption>
+              <span class="label small">One tile · textured → segmented</span>
+              The tile's polygons split by class: building (2) in gold, vegetation (8) in purple.
+            </figcaption>
+          </figure>
+
+          <figure class="result card wide">
+            <div class="pair two">
+              <img src="/img/article/tileset-textured.webp" width="674" height="474" loading="lazy" decoding="async"
+                alt="An extracted region of a photogrammetry tileset: houses with red roofs, condominium towers, roads, a railway and trees." />
+              <img src="/img/article/tileset-segmented.webp" width="676" height="263" loading="lazy" decoding="async"
+                alt="A segmented tileset viewed at an angle: building polygons in blue, vegetation in green, everything else in black." />
+            </div>
+            <figcaption>
+              <span class="label small">A tileset · textured → segmented</span>
+              An extracted region, and a segmented tileset coloured by feature ID (building blue, vegetation
+              green, other classes black), as in the custom shader in <code>webserver/public/index.js</code>.
+            </figcaption>
+          </figure>
+        </div>
       </section>
 
       <section class="wrap section writeup" id="writeup">
@@ -168,7 +220,7 @@
             <div class="card mini">
               <p class="label small">Output B · <code>--submeshes</code></p>
               <p>
-                Faces are grouped by class into separate <code>.glb</code> files, and py3dtiles converts them into
+                Polygons are grouped by class into separate <code>.glb</code> files, and py3dtiles converts them into
                 a new 3D Tileset that carries the class labels.
               </p>
             </div>

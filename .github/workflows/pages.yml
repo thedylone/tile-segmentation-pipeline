@@ -2,7 +2,7 @@ name: Deploy project page
 
 on:
   push:
-    branches: [main]
+    branches: [dylan]
     paths:
       - "site/**"
       - ".github/workflows/pages.yml"
