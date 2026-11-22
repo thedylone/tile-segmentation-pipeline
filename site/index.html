@@ -61,20 +61,20 @@
           </div>
         </div>
 
-        <figure class="viewer card" id="viewer">
-          <div class="viewer-stage" id="stage">
-            <div class="viewer-status" id="viewer-status">Loading 3D scene…</div>
-          </div>
-          <div class="viewer-chrome">
-            <span class="placeholder-badge">Placeholder scene</span>
-            <span class="viewer-hint">Drag to orbit · pinch or scroll to zoom</span>
+        <figure class="hero-fig card">
+          <div class="hero-pair">
+            <img src="/img/article/tile-textured.webp" width="483" height="487" fetchpriority="high" decoding="async"
+              alt="One textured tile: a tall residential block on the left and a mass of trees on the right." />
+            <span class="hero-arrow" aria-hidden="true">→</span>
+            <img src="/img/article/tile-segmented.webp" width="470" height="440" fetchpriority="high" decoding="async"
+              alt="The same tile after segmentation: the block's polygons in gold as building, the tree polygons in purple as vegetation." />
           </div>
           <figcaption>
-            <ul class="legend" id="legend" aria-label="Classes (tap to toggle)"></ul>
-            <p class="viewer-note">
-              A synthetic, procedurally generated block whose polygons are coloured by class, the way the
-              pipeline labels a tile's mesh. It is not pipeline output; see <a href="#results">real results</a> below.
-            </p>
+            <ul class="legend" aria-label="Classes">
+              <li><span class="swatch" style="background:#c8a050"></span>building <span class="cid">2</span></li>
+              <li><span class="swatch" style="background:#bf46ca"></span>vegetation <span class="cid">8</span></li>
+            </ul>
+            <p class="hero-note">One tile, textured and then segmented: each polygon takes the class predicted for its texture.</p>
           </figcaption>
         </figure>
       </section>
@@ -147,46 +147,43 @@
         <p class="label">Results</p>
         <h2>Labelled polygons, not pixels</h2>
         <p class="section-lede">
-          The output is the original mesh with every polygon assigned a class. These images are from the
+          The output is the original mesh with every polygon assigned a class. These images, like the one
+          above, are from the
           <a href="https://medium.com/d-classified/segmentation-pipeline-for-3d-tiles-1303fcb5e6be">Medium article</a>.
         </p>
 
         <div class="results-grid">
           <figure class="result card">
-            <div class="pair">
+            <div class="shot">
               <img src="/img/article/texture-mask.webp" width="499" height="407" loading="lazy" decoding="async"
                 alt="A glTF texture atlas of rooftops and tree canopies, and beside it the same atlas overlaid with the predicted mask: building regions in orange, vegetation in purple." />
             </div>
             <figcaption>
-              <span class="label small">Step 4 · Texture and mask</span>
-              A texture atlas extracted from one <code>.glb</code> and the mask Mask2Former predicts for it.
+              <span class="label small">Texture → mask</span>
+              A texture atlas extracted from one <code>.glb</code>, and the mask Mask2Former predicts for it.
             </figcaption>
           </figure>
 
           <figure class="result card">
-            <div class="pair two">
-              <img src="/img/article/tile-textured.webp" width="483" height="487" loading="lazy" decoding="async"
-                alt="One textured tile: a tall residential block on the left and a mass of trees on the right." />
-              <img src="/img/article/tile-segmented.webp" width="470" height="440" loading="lazy" decoding="async"
-                alt="The same tile after segmentation: the block's polygons in gold as building, the tree polygons in purple as vegetation." />
+            <div class="shot">
+              <img src="/img/article/tileset-textured.webp" width="674" height="474" loading="lazy" decoding="async"
+                alt="An extracted region of a photogrammetry tileset: houses with red roofs, condominium towers, roads, a railway and trees." />
             </div>
             <figcaption>
-              <span class="label small">One tile · textured → segmented</span>
-              The tile's polygons split by class: building (2) in gold, vegetation (8) in purple.
+              <span class="label small">Extracted region</span>
+              A region cut out of a larger tileset with <code>extract_tileset.py</code>, with its original textures.
             </figcaption>
           </figure>
 
-          <figure class="result card wide">
-            <div class="pair two">
-              <img src="/img/article/tileset-textured.webp" width="674" height="474" loading="lazy" decoding="async"
-                alt="An extracted region of a photogrammetry tileset: houses with red roofs, condominium towers, roads, a railway and trees." />
+          <figure class="result card">
+            <div class="shot">
               <img src="/img/article/tileset-segmented.webp" width="676" height="263" loading="lazy" decoding="async"
                 alt="A segmented tileset viewed at an angle: building polygons in blue, vegetation in green, everything else in black." />
             </div>
             <figcaption>
-              <span class="label small">A tileset · textured → segmented</span>
-              An extracted region, and a segmented tileset coloured by feature ID (building blue, vegetation
-              green, other classes black), as in the custom shader in <code>webserver/public/index.js</code>.
+              <span class="label small">Segmented tileset</span>
+              Polygons coloured by feature ID (building blue, vegetation green, other classes black), as in the
+              custom shader in <code>webserver/public/index.js</code>.
             </figcaption>
           </figure>
         </div>

@@ -5,16 +5,11 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview",
-    "make-placeholder": "node scripts/make-placeholder.mjs"
+    "preview": "vite preview"
   },
   "devDependencies": {
-    "@types/three": "^0.169.0",
     "typescript": "^5.6.3",
     "vite": "^5.4.21"
-  },
-  "dependencies": {
-    "three": "^0.169.0"
   },
   "private": true,
   "type": "module"
