@@ -1,257 +1,249 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Segmentation Pipeline for 3D Tiles · Dylan</title>
-    <meta
-      name="description"
-      content="A proof-of-concept pipeline that semantically segments the glTF models inside a 3D Tileset by segmenting their 2D textures with a Transformer model and mapping the labels back onto the 3D geometry."
-    />
-    <meta name="theme-color" content="#f9f9f6" />
-    <meta property="og:title" content="Segmentation Pipeline for 3D Tiles" />
-    <meta
-      property="og:description"
-      content="Texture-based semantic segmentation of glTF models in 3D Tiles, built during an internship at DSTA."
-    />
-    <meta property="og:image" content="https://projects.thedylone.com/tile-segmentation-pipeline/gallery-cover.webp" />
-    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231e2f4d'/%3E%3Cpath d='M9 21l7-11 7 11z' fill='%23b8860b'/%3E%3C/svg%3E" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&display=swap"
-      rel="stylesheet"
-    />
-  </head>
-  <body>
-    <div class="backdrop" aria-hidden="true"></div>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Segmentation Pipeline for 3D Tiles | Dylan Chua</title>
+  <meta name="description" content="A proof-of-concept pipeline that labels the polygons of glTF models in a 3D Tileset by segmenting their 2D textures with a Transformer and mapping the labels back onto the mesh." />
+  <meta name="theme-color" content="#f9f9f6" />
+  <meta property="og:title" content="Segmentation Pipeline for 3D Tiles" />
+  <meta property="og:description" content="Texture-based semantic segmentation of glTF models in 3D Tiles, built during an internship at DSTA." />
+  <meta property="og:image" content="https://projects.thedylone.com/tile-segmentation-pipeline/gallery-cover.webp" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💫</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/project-kit.css" />
+  <script src="/project-kit.js" defer></script>
+  <!-- page-specific styles are loaded after the kit by src/main.ts -->
+</head>
+<body>
+  <header class="pk-header">
+    <div class="pk-header-inner">
+      <a class="pk-brand" href="https://projects.thedylone.com/">Dylan Chua</a>
+      <ul class="pk-nav">
+        <li><a href="https://projects.thedylone.com/">Projects</a></li>
+        <li><a href="https://github.com/thedylone/tile-segmentation-pipeline" target="_blank" rel="noreferrer">Source</a></li>
+      </ul>
+    </div>
+  </header>
 
-    <header class="topbar wrap">
-      <a class="back" href="https://projects.thedylone.com/">
-        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3L5 8l5 5" /></svg>
-        <span>projects.thedylone.com</span>
-      </a>
-      <a class="gh" href="https://github.com/thedylone/tile-segmentation-pipeline">
-        <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" stroke="none" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-        <span>Source</span>
-      </a>
-    </header>
-
-    <main>
-      <section class="hero wrap">
-        <div class="hero-copy">
-          <p class="eyebrow">DSTA internship · 2023</p>
-          <h1>Segmentation pipeline for <em>3D&nbsp;Tiles</em></h1>
-          <p class="lede">
-            A proof of concept that labels the polygons of the glTF models inside a 3D Tileset. Instead of
-            segmenting geometry directly, it segments each model's 2D textures with a Transformer and maps
-            those labels back onto the 3D mesh through its texture coordinates.
-          </p>
-          <ul class="tags" aria-label="Technologies">
-            <li>Python</li>
-            <li>Mask2Former</li>
-            <li>glTF / glb</li>
-            <li>3D Tiles</li>
-            <li>Draco</li>
-            <li>CesiumJS</li>
-          </ul>
-          <div class="cta">
-            <a class="btn primary" href="https://github.com/thedylone/tile-segmentation-pipeline">View the repository</a>
-            <a class="btn" href="https://medium.com/d-classified/segmentation-pipeline-for-3d-tiles-1303fcb5e6be">Read on Medium ↗</a>
-          </div>
+  <main class="pk-main">
+    <section class="pk-hero pk-container">
+      <p class="pk-eyebrow">Project · Research</p>
+      <h1 class="pk-title">Segmentation Pipeline for 3D Tiles</h1>
+      <p class="pk-lede">
+        A proof of concept, built during my DSTA internship in 2023, that labels the polygons of the glTF models
+        inside a 3D Tileset. It segments each model's 2D textures with a Transformer and maps those labels back
+        onto the mesh through its texture coordinates.
+      </p>
+      <div class="pk-actions">
+        <a class="pk-btn" href="https://medium.com/d-classified/segmentation-pipeline-for-3d-tiles-1303fcb5e6be" target="_blank" rel="noreferrer">Read the article <span aria-hidden="true">↗</span></a>
+        <a class="pk-btn pk-btn-secondary" href="https://github.com/thedylone/tile-segmentation-pipeline" target="_blank" rel="noreferrer">View code <span aria-hidden="true">→</span></a>
+      </div>
+      <ul class="pk-tags">
+        <li class="pk-tag">Python</li>
+        <li class="pk-tag">PyTorch</li>
+        <li class="pk-tag">Hugging Face Transformers</li>
+        <li class="pk-tag">Mask2Former</li>
+        <li class="pk-tag">glTF</li>
+        <li class="pk-tag">3D Tiles</li>
+        <li class="pk-tag">Draco</li>
+        <li class="pk-tag">CesiumJS</li>
+      </ul>
+      <figure class="pk-figure pk-hero-media">
+        <div class="pk-frame tile-pair">
+          <img src="/img/article/tile-textured.webp" width="483" height="487" fetchpriority="high" decoding="async"
+            alt="One textured tile: a tall residential block on the left and a mass of trees on the right." />
+          <span class="tile-arrow" aria-hidden="true">→</span>
+          <img src="/img/article/tile-segmented.webp" width="470" height="440" fetchpriority="high" decoding="async"
+            alt="The same tile after segmentation: the block's polygons in gold as building, the tree polygons in purple as vegetation." />
         </div>
+        <figcaption>
+          <b>One tile</b>Textured, then segmented: each polygon takes the class predicted for its texture.
+          <span class="legend">
+            <span><i class="swatch" style="background:#c8a050"></i>building 2</span>
+            <span><i class="swatch" style="background:#bf46ca"></i>vegetation 8</span>
+          </span>
+        </figcaption>
+      </figure>
+    </section>
 
-        <figure class="hero-fig card">
-          <div class="hero-pair">
-            <img src="/img/article/tile-textured.webp" width="483" height="487" fetchpriority="high" decoding="async"
-              alt="One textured tile: a tall residential block on the left and a mass of trees on the right." />
-            <span class="hero-arrow" aria-hidden="true">→</span>
-            <img src="/img/article/tile-segmented.webp" width="470" height="440" fetchpriority="high" decoding="async"
-              alt="The same tile after segmentation: the block's polygons in gold as building, the tree polygons in purple as vegetation." />
-          </div>
-          <figcaption>
-            <ul class="legend" aria-label="Classes">
-              <li><span class="swatch" style="background:#c8a050"></span>building <span class="cid">2</span></li>
-              <li><span class="swatch" style="background:#bf46ca"></span>vegetation <span class="cid">8</span></li>
-            </ul>
-            <p class="hero-note">One tile, textured and then segmented: each polygon takes the class predicted for its texture.</p>
-          </figcaption>
-        </figure>
-      </section>
+    <nav class="pk-subnav" aria-label="On this page">
+      <div class="pk-subnav-inner">
+        <ul>
+          <li><a href="#overview">Overview</a></li>
+          <li><a href="#method">Method</a></li>
+          <li><a href="#results">Results</a></li>
+          <li><a href="#usage">Usage</a></li>
+        </ul>
+      </div>
+    </nav>
 
-      <section class="wrap section" id="pipeline">
-        <p class="label">The pipeline</p>
-        <h2>From a tileset to labelled geometry</h2>
-        <p class="section-lede">
+    <section id="overview" class="pk-section">
+      <div class="pk-container">
+        <p class="pk-eyebrow">01 — Overview</p>
+        <h2 class="pk-h2">Why segment textures</h2>
+        <div class="pk-prose">
+          <p>
+            Rather than segmenting the 3D geometry itself, the pipeline segments the texture images each model
+            already carries, using a pretrained 2D segmentation model, and lets the glTF's own UV mapping carry the
+            result into 3D.
+          </p>
+          <p>
+            The model is <code>facebook/mask2former-swin-small-cityscapes-semantic</code>, loaded with Hugging Face
+            Transformers. For each vertex, the texture coordinate (0–1 in both axes) is scaled to the mask's size,
+            and the class at that pixel becomes the vertex's class. Classes follow the model's Cityscapes label set:
+            building is class 2 and vegetation is class 8.
+          </p>
+          <p>
+            The full write-up is on
+            <a href="https://medium.com/d-classified/segmentation-pipeline-for-3d-tiles-1303fcb5e6be" target="_blank" rel="noreferrer">D-Classified on Medium</a>.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section id="method" class="pk-section">
+      <div class="pk-container">
+        <p class="pk-eyebrow">02 — Method</p>
+        <h2 class="pk-h2">From a tileset to labelled geometry</h2>
+        <p class="pk-prose pk-muted">
           <code>pipeline.py</code> walks the tileset, segments every model it finds, and writes the result back out
           as a tileset with per-vertex class metadata.
         </p>
 
-        <ol class="flow">
-          <li class="step card">
-            <span class="step-no">01</span>
-            <svg class="step-icon" viewBox="0 0 48 48" aria-hidden="true"><rect x="6" y="6" width="14" height="14" rx="2"/><rect x="28" y="6" width="14" height="14" rx="2"/><rect x="6" y="28" width="14" height="14" rx="2"/><rect x="28" y="28" width="14" height="14" rx="2" class="accent"/></svg>
-            <h3>3D Tileset</h3>
+        <ol class="steps">
+          <li class="pk-card">
+            <span class="pk-label">Step 01</span>
+            <h3 class="pk-h3">3D Tileset</h3>
             <p>Traverse <code>tileset.json</code> and its child tilesets to find every tile's content.</p>
           </li>
-          <li class="step card">
-            <span class="step-no">02</span>
-            <svg class="step-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M24 5l17 10v18L24 43 7 33V15z"/><path d="M7 15l17 10 17-10M24 25v18" class="accent"/></svg>
-            <h3>glTF / glb</h3>
+          <li class="pk-card">
+            <span class="pk-label">Step 02</span>
+            <h3 class="pk-h3">glTF / glb</h3>
             <p>Load each <code>.glb</code>, decompressing Draco-compressed meshes with DracoPy.</p>
           </li>
-          <li class="step card">
-            <span class="step-no">03</span>
-            <svg class="step-icon" viewBox="0 0 48 48" aria-hidden="true"><rect x="7" y="7" width="34" height="34" rx="3"/><path d="M7 31l10-9 8 7 6-5 10 8" class="accent"/><circle cx="31" cy="16" r="3"/></svg>
-            <h3>Texture extraction</h3>
+          <li class="pk-card">
+            <span class="pk-label">Step 03</span>
+            <h3 class="pk-h3">Texture extraction</h3>
             <p>Pull the embedded texture images out of the glTF buffers as Pillow images.</p>
           </li>
-          <li class="step card">
-            <span class="step-no">04</span>
-            <svg class="step-icon" viewBox="0 0 48 48" aria-hidden="true"><rect x="7" y="7" width="34" height="34" rx="3"/><path d="M7 24c8-6 12 4 20-2s10-6 14-4M7 33c6-3 12 2 18-1s10-3 16 0" class="accent"/></svg>
-            <h3>2D semantic segmentation</h3>
+          <li class="pk-card">
+            <span class="pk-label">Step 04</span>
+            <h3 class="pk-h3">2D semantic segmentation</h3>
             <p>Mask2Former (Swin-S, Cityscapes) predicts a class for every texture pixel.</p>
           </li>
-          <li class="step card">
-            <span class="step-no">05</span>
-            <svg class="step-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M10 38L24 10l14 28z"/><circle cx="10" cy="38" r="3" class="accent-fill"/><circle cx="24" cy="10" r="3" class="accent-fill"/><circle cx="38" cy="38" r="3" class="accent-fill"/></svg>
-            <h3>UV → polygon back-projection</h3>
+          <li class="pk-card">
+            <span class="pk-label">Step 05</span>
+            <h3 class="pk-h3">UV → polygon back-projection</h3>
             <p>Each vertex's texture coordinate looks up its pixel in the mask; polygons take their vertices' class.</p>
           </li>
-          <li class="step card">
-            <span class="step-no">06</span>
-            <svg class="step-icon" viewBox="0 0 48 48" aria-hidden="true"><path d="M24 6l16 9v18l-16 9-16-9V15z"/><path d="M8 15l16 9 16-9" /><path d="M24 24v18" class="accent"/></svg>
-            <h3>Labelled 3D output</h3>
+          <li class="pk-card">
+            <span class="pk-label">Step 06</span>
+            <h3 class="pk-h3">Labelled 3D output</h3>
             <p>Write the classes as glb metadata, or split polygons by class into a new tileset.</p>
           </li>
         </ol>
 
-        <figure class="readme-fig card">
-          <img
-            src="/img/pipeline-readme.webp"
-            width="2000"
-            height="587"
-            loading="lazy"
-            decoding="async"
-            alt="Pipeline diagram from the repository README: a tileset JSON is traversed to find models; textures are extracted and segmented; vertices are classified (for example class 2 and class 8) and the metadata is written either into new .glb files or into a new tileset JSON with split .glb files."
-          />
+        <figure class="pk-figure">
+          <img src="/img/pipeline-readme.webp" width="2000" height="587" loading="lazy" decoding="async"
+            alt="Pipeline diagram from the repository README: a tileset JSON is traversed to find models; textures are extracted and segmented; vertices are classified (for example class 2 and class 8) and the metadata is written either into new .glb files or into a new tileset JSON with split .glb files." />
           <figcaption>
-            <span class="label small">From the README</span>
-            The original diagram, showing both output modes: metadata in the <code>.glb</code> files, or a new tileset
-            JSON that points to <code>.glb</code> files split by class.
+            <b>From the README</b>Both output modes: metadata in the <code>.glb</code> files, or a new tileset JSON
+            that points to <code>.glb</code> files split by class.
           </figcaption>
         </figure>
-      </section>
+      </div>
+    </section>
 
-      <section class="wrap section" id="results">
-        <p class="label">Results</p>
-        <h2>Labelled polygons, not pixels</h2>
-        <p class="section-lede">
-          The output is the original mesh with every polygon assigned a class. These images, like the one
-          above, are from the
-          <a href="https://medium.com/d-classified/segmentation-pipeline-for-3d-tiles-1303fcb5e6be">Medium article</a>.
+    <section id="results" class="pk-section">
+      <div class="pk-container">
+        <p class="pk-eyebrow">03 — Results</p>
+        <h2 class="pk-h2">Labelled polygons, not pixels</h2>
+        <p class="pk-prose pk-muted">
+          The output is the original mesh with every polygon assigned a class. These images, like the one above,
+          are from the Medium article.
         </p>
 
-        <div class="results-grid">
-          <figure class="result card">
-            <div class="shot">
+        <div class="results">
+          <figure class="pk-figure">
+            <div class="pk-frame shot">
               <img src="/img/article/texture-mask.webp" width="499" height="407" loading="lazy" decoding="async"
                 alt="A glTF texture atlas of rooftops and tree canopies, and beside it the same atlas overlaid with the predicted mask: building regions in orange, vegetation in purple." />
             </div>
-            <figcaption>
-              <span class="label small">Texture → mask</span>
-              A texture atlas extracted from one <code>.glb</code>, and the mask Mask2Former predicts for it.
-            </figcaption>
+            <figcaption><b>Texture → mask</b>A texture atlas extracted from one <code>.glb</code>, and the mask Mask2Former predicts for it.</figcaption>
           </figure>
-
-          <figure class="result card">
-            <div class="shot">
+          <figure class="pk-figure">
+            <div class="pk-frame shot">
               <img src="/img/article/tileset-textured.webp" width="674" height="474" loading="lazy" decoding="async"
                 alt="An extracted region of a photogrammetry tileset: houses with red roofs, condominium towers, roads, a railway and trees." />
             </div>
-            <figcaption>
-              <span class="label small">Extracted region</span>
-              A region cut out of a larger tileset with <code>extract_tileset.py</code>, with its original textures.
-            </figcaption>
+            <figcaption><b>Extracted region</b>A region cut out of a larger tileset with <code>extract_tileset.py</code>, with its original textures.</figcaption>
           </figure>
-
-          <figure class="result card">
-            <div class="shot">
+          <figure class="pk-figure">
+            <div class="pk-frame shot">
               <img src="/img/article/tileset-segmented.webp" width="676" height="263" loading="lazy" decoding="async"
                 alt="A segmented tileset viewed at an angle: building polygons in blue, vegetation in green, everything else in black." />
             </div>
-            <figcaption>
-              <span class="label small">Segmented tileset</span>
-              Polygons coloured by feature ID (building blue, vegetation green, other classes black), as in the
-              custom shader in <code>webserver/public/index.js</code>.
-            </figcaption>
+            <figcaption><b>Segmented tileset</b>Polygons coloured by feature ID (building blue, vegetation green, other classes black), as in the custom shader in <code>webserver/public/index.js</code>.</figcaption>
           </figure>
         </div>
-      </section>
+      </div>
+    </section>
 
-      <section class="wrap section writeup" id="writeup">
-        <p class="label">Write-up</p>
-        <h2>Why segment textures?</h2>
-        <div class="prose">
-          <p>
-            Rather than segmenting the 3D geometry itself, the pipeline segments the texture images each model already
-            carries, using a pretrained 2D segmentation model, and lets the glTF's own UV mapping carry the result
-            into 3D.
-          </p>
-          <p>
-            The model is <code>facebook/mask2former-swin-small-cityscapes-semantic</code>, loaded with Hugging Face
-            Transformers. For each vertex, the texture coordinate (0–1 in both axes) is scaled to the mask's size and
-            the class at that pixel becomes the vertex's class. Classes follow the model's Cityscapes label set:
-            building is class 2 and vegetation is class 8 in the diagram above.
-          </p>
+    <section id="usage" class="pk-section">
+      <div class="pk-container">
+        <p class="pk-eyebrow">04 — Usage</p>
+        <h2 class="pk-h2">Two outputs, at tileset scale</h2>
 
-          <div class="split">
-            <div class="card mini">
-              <p class="label small">Output A · metadata</p>
-              <p>
-                Each segmented <code>.glb</code> gets an <code>EXT_mesh_features</code> feature-ID attribute
-                (<code>_FEATURE_ID_0</code>) holding every vertex's class. The bundled CesiumJS viewer reads it with a
-                custom shader to colour the classes.
-              </p>
-            </div>
-            <div class="card mini">
-              <p class="label small">Output B · <code>--submeshes</code></p>
-              <p>
-                Polygons are grouped by class into separate <code>.glb</code> files, and py3dtiles converts them into
-                a new 3D Tileset that carries the class labels.
-              </p>
-            </div>
+        <div class="pk-grid">
+          <div class="pk-card">
+            <span class="pk-label">Output A · metadata</span>
+            <p>
+              Each segmented <code>.glb</code> gets an <code>EXT_mesh_features</code> feature-ID attribute
+              (<code>_FEATURE_ID_0</code>) holding every vertex's class. The bundled CesiumJS viewer reads it with a
+              custom shader to colour the classes.
+            </p>
           </div>
+          <div class="pk-card">
+            <span class="pk-label">Output B · --submeshes</span>
+            <p>
+              Polygons are grouped by class into separate <code>.glb</code> files, and py3dtiles converts them into
+              a new 3D Tileset that carries the class labels.
+            </p>
+          </div>
+        </div>
 
-          <h3>Working at tileset scale</h3>
+        <div class="pk-prose">
           <p>
             Large tilesets take a long time to process, so <code>extract_tileset.py</code> can cut out a single branch
             first. You can select it by a target file name or a latitude/longitude bounding box, and keep the
             neighbouring tiles if you need them. The pipeline also resumes after an interruption by skipping tiles
             whose output already exists.
           </p>
+        </div>
 
-<pre class="code card"><span class="c"># segment a tileset, writing labelled .glb files</span>
+<pre><code># segment a tileset, writing labelled .glb files
 python pipeline.py --file tileset.json --input input/ --output output/
 
-<span class="c"># or split by class into a new tileset</span>
-python pipeline.py --file tileset.json --input input/ --output output/ --submeshes</pre>
+# or split by class into a new tileset
+python pipeline.py --file tileset.json --input input/ --output output/ --submeshes</code></pre>
+      </div>
+    </section>
+  </main>
 
-          <a class="article card" href="https://medium.com/d-classified/segmentation-pipeline-for-3d-tiles-1303fcb5e6be">
-            <span class="label small">Full article · D-Classified on Medium</span>
-            <span class="article-title">Segmentation Pipeline for 3D Tiles</span>
-            <span class="article-cta">Read the full write-up ↗</span>
-          </a>
-        </div>
-      </section>
-    </main>
+  <footer class="pk-footer">
+    <div class="pk-footer-inner">
+      <span>© 2026 Dylan Chua</span>
+      <div class="pk-footer-links">
+        <a href="https://projects.thedylone.com/">All projects</a>
+        <a href="https://thedylone.pages.dev">Portfolio</a>
+        <a href="https://github.com/thedylone" target="_blank" rel="noreferrer">GitHub</a>
+      </div>
+    </div>
+  </footer>
 
-    <footer class="wrap footer">
-      <a href="https://projects.thedylone.com/">← All projects</a>
-      <a href="https://github.com/thedylone/tile-segmentation-pipeline">GitHub</a>
-      <a href="https://medium.com/d-classified/segmentation-pipeline-for-3d-tiles-1303fcb5e6be">Medium</a>
-    </footer>
-
-    <script type="module" src="/src/main.ts"></script>
-  </body>
+  <script type="module" src="/src/main.ts"></script>
+</body>
 </html>

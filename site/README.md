@@ -15,6 +15,13 @@ npm run build    # production build in site/dist
 that change `site/`. It can also be run by hand. In the repository settings, set **Pages → Source** to
 **GitHub Actions**.
 
+## Shared kit
+
+`public/project-kit.css` (v1.2) and `public/project-kit.js` (v1.1) are the shared style kit for every
+project page under projects.thedylone.com. They come from `public/kit/` on the `projects-gallery` branch
+of thedylone/thedylone.github.io. Copy them verbatim and don't edit them here. Page-specific styles live
+in `src/style.css`, which loads after the kit and uses only kit tokens.
+
 ## Images
 
 The hero and Results images come from the Medium article and live in `public/img/article/`.
